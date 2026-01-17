@@ -2806,7 +2806,7 @@ function check_update()
 	local path = configDirectory .. "/Update_Info.json"
 	os.remove(path)
 	local url =
-	'https://raw.githubusercontent.com/Alexandr-Botovod/Prison_Helper/refs/heads/main/PrisonHelper/Update_info.json'
+	'https://raw.githubusercontent.com/AlexWright55/PrisonHelper/refs/heads/main/PrisonHelper/Update_info.json?token=GHSAT0AAAAAADTOE3NJW5HUJNDT5GUCZVNU2LLTHPQ'
 	if isMonetLoader() then
 		downloadToFile(url, path, function(type, pos, total_size)
 			if type == "finished" then
