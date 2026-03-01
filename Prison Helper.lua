@@ -1,8 +1,8 @@
 ---@diagnostic disable: undefined-global, need-check-nil, lowercase-global, cast-local-type, unused-local
 script_name("Prison Helper")
-script_description('Скрипт для Правительства')
+script_description('Скрипт для Тюрьмы строгого режима')
 script_author("Flip Anderson")
-script_version("0.0.0.5")
+script_version("0.0.0.1")
 
 require('lib.moonloader')
 require('encoding').default = 'CP1251'
@@ -708,6 +708,18 @@ function save_module(key)
 end
 ---------------------------------------------- JSON RPGUNS  ------------------------------------------------------
 local MODULE = {
+    Initial = {
+		Window = imgui.new.bool(),
+		input = imgui.new.char[256](),
+		slider = imgui.new.int(0),
+		step = 0,
+		fraction_type_selector = 0,
+		fraction_type_selector_text = 'Без организации',
+		fraction_type_icon = nil,
+		step2_result = 0,
+		fraction_selector = 0,
+		fraction_selector_text = '',
+	},
     RPWeapon = {
         Window = imgui.new.bool(),
         ComboTags = imgui.new.int(),
@@ -4138,7 +4150,7 @@ function check_update()
     local path = configDirectory .. "/Update_Info.json"
     os.remove(path)
     local url =
-        'https://alexwright55.github.io/Goverment-Helper/Goverment%20Helper/Update_Info.json'
+        'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Update_Info.json'
     if isMonetLoader() then
         downloadToFile(url, path, function(type, pos, total_size)
             if type == "finished" then
@@ -4244,11 +4256,11 @@ function check_resourses()
     if not doesDirectoryExist(configDirectory .. '/Resourse') then
         createDirectory(configDirectory .. '/Resourse')
     end
-    if not doesFileExist(configDirectory .. '/Resourse/logo.png') then
+    if not doesFileExist(configDirectory .. '/Resourse/logotype.png') then
         print('Подгружаю логотип хелпера...')
         downloadFileFromUrlToPath(
             'https://alexwright55.github.io/Goverment-Helper/Goverment%20Helper/Resourse/logotype.png',
-            configDirectory .. '/Resourse/logo.png')
+            configDirectory .. '/Resourse/logotype.png')
     end
 end
 
