@@ -1,6 +1,7 @@
 ---@diagnostic disable: undefined-global, need-check-nil, lowercase-global, cast-local-type, unused-local
 script_name("Prison Helper")
-script_description('Скрипт для Тюрьмы строгого режима')
+script_description(
+    'Скрипт для Тюрьмы строгого режима')
 script_author("Flip Anderson")
 script_version("0.0.0.1")
 
@@ -31,7 +32,7 @@ local default_settings = {
         auto_clicker_situation = true,
         use_form_su = false,
         moonmonet_theme_enable = true,
-        moonmonet_theme_color = 16776960,
+        moonmonet_theme_color = 12434877,
         mobile_fastmenu_button = true,
         mobile_stop_button = true,
         use_binds = true,
@@ -43,7 +44,8 @@ local default_settings = {
         auto_doklad = false,
         post_status = 'Неизвестно',
         rp_guns = true,
-        custom_dpi = 1.0
+        custom_dpi = 1.0,
+        fraction_mode = ''
     },
     player_info = {
         name_surname = '',
@@ -141,48 +143,45 @@ local folderDirectory = string.format('rd /s /q "%s"',
 
 local path_settings = configDirectory .. "/Settings.json"
 function load_settings()
-    if not doesDirectoryExist(configDirectory) then
-        createDirectory(configDirectory)
-    end
-    if not doesFileExist(path_settings) then
+    if not doesDirectoryExist(configDirectory) then createDirectory(configDirectory) end
+    if not doesFileExist(configDirectory .. "/Settings.json") then
         settings = default_settings
-        print(script_tag ..
-                  ' Файл с настройками не найден, использую стандартные настройки!')
+		print('Файл с настройками не найден, использую стандартные настройки!')
     else
-        local file = io.open(path_settings, 'r')
+        local file = io.open(configDirectory .. "/Settings.json", 'r')
         if file then
             local contents = file:read('*a')
             file:close()
-            if #contents == 0 then
+			if #contents ~= 0 then
+				local result, loaded = pcall(decodeJson, contents)
+				if result then	
+					settings = loaded
+					if settings.general.version ~= thisScript().version then
+						print('Новая версия, сброс настроек!')
+						local fraction_mode = settings.general.fraction_mode
+						local player_info = settings.player_info
+						local key = settings.general.key
+						settings = default_settings
+						settings.player_info = player_info
+						settings.general.fraction_mode = fraction_mode
+						settings.general.key = key or ''
+						save_settings()
+						reload_script = true
+						thisScript():reload()
+					else
+						print('Настройки успешно загружены!')
+					end
+				else
+					settings = default_settings
+					print('Не удалось открыть файл с настройками, использую стандартные настройки!')
+				end
+			else
                 settings = default_settings
-                print(script_tag ..
-                          ' Не удалось открыть файл с настройками, использую стандартные настройки!')
-            else
-                local result, loaded = pcall(decodeJson, contents)
-                if result then
-                    settings = loaded
-                    print(script_tag ..
-                              ' Настройки успешно загружены!')
-                    if settings.general.version ~= thisScript().version then
-                        print(script_tag ..
-                                  ' Новая версия, сброс настроек!')
-                        settings = default_settings
-                        save_settings()
-                        reload_script = true
-                        thisScript():reload()
-                    else
-                        print(script_tag ..
-                                  '  Настройки успешно загружены!')
-                    end
-                else
-                    print(script_tag ..
-                              '  Не удалось открыть файл с настройками, использую стандартные настройки!')
-                end
-            end
+				print('Не удалось открыть файл с настройками, использую стандартные настройки!')
+			end
         else
             settings = default_settings
-            print(script_tag ..
-                      '  Не удалось открыть файл с настройками, использую стандартные настройки!')
+			print('Не удалось открыть файл с настройками, использую стандартные настройки!')
         end
     end
 end
@@ -202,7 +201,9 @@ function save_settings()
         return false
     end
 end
-
+function isMode(mode_type)
+	return settings.general.fraction_mode == mode_type
+end
 load_settings()
 -------------------------------------------- JSON MY NOTES ---------------------------------------------
 local notes = {note = {}}
@@ -262,6 +263,64 @@ function save_notes()
 end
 
 load_notes()
+----------------------- JSON SMART RPTP(Регламент повышения срока заключённым) --------------------------------------
+local smart_rptp = {}
+local path_rptp = configDirectory .. "/SmartRPTP.json"
+function load_smart_rptp()
+    if doesFileExist(path_rptp) then
+        local file, errstr = io.open(path_rptp, 'r')
+        if file then
+            local contents = file:read('*a')
+            file:close()
+            if #contents == 0 then
+                print(script_tag ..
+                          '  Не удалось открыть файл с регламентом повышения срока заключённым!')
+                print(script_tag ..
+                          '  Причина: этот файл пустой')
+            else
+                local result, loaded = pcall(decodeJson, contents)
+                if result then
+                    smart_rptp = loaded
+                    print(script_tag ..
+                              '  Регламент повышения срока заключённым инициализирован!')
+                else
+                    print(script_tag ..
+                              '  Не удалось открыть файл с регламентом повышения срока заключённым!')
+                    print(script_tag ..
+                              '  Причина: Не удалось декодировать json (ошибка в файле)')
+                end
+            end
+        else
+            print(script_tag ..
+                      '  Не удалось открыть файл с регламентом повышения срока заключённым!')
+            print(script_tag .. '  Причина: ')
+        end
+    else
+        print(script_tag ..
+                  '  Не удалось открыть файл с регламентом повышения срока заключённым!')
+        print(script_tag ..
+                  '  Причина: этого файла нету в папке ' ..
+                  configDirectory)
+    end
+end
+
+function save_smart_rptp()
+    local file, errstr = io.open(path_rptp, 'w')
+    if file then
+        local result, encoded = pcall(encodeJson, smart_rptp)
+        file:write(result and encoded or "")
+        file:close()
+        print(script_tag .. '  Умный розыск сохранён!')
+        return result
+    else
+        print(script_tag ..
+                  '  Не удалось сохранить умный розыск, ошибка: ',
+              errstr)
+        return false
+    end
+end
+
+load_smart_rptp()
 ------------------------------------------ JSON & MODULES ----------------------------------------
 local modules = {
     Initial = {
@@ -630,7 +689,60 @@ local modules = {
             oldGun = nil,
             nowGun = 0
         }
-    }
+    },
+    commands = {
+		name = 'Команды',
+		path = configDirectory .. "/Commands.json",
+		data = {
+			commands = {
+				my = {
+					{cmd = 'time' , description = 'Посмотреть время' ,  text = '/me взглянул{sex} на часы с гравировкой Arizona Helper и посмотрел{sex} время&/time&/do На часах видно время {get_time}.' , arg = '' , enable = true, waiting = '2', bind = "{}"},
+					{cmd = 'cure' , description = 'Поднять игрока из стадии' ,  text = '/me наклоняется над человеком, и прощупывает его пульс на сонной артерии&/cure {arg_id}&/do Пульс отсутствует.&/me начинает делать человеку непрямой массаж сердца, время от времени проверяя пульс&/do Спустя несколько минут сердце человека начало биться.&/do Человек пришел в сознание.&/todo Отлично*улыбаясь' , arg = '{arg_id}' , enable = true , waiting = '2', bind = "{}"},
+				},
+				army = {
+					{cmd = 'pas', description = 'Проверка документов (кпп)', text = 'Здравствуйте, я {fraction_rank} {fraction_tag} - {my_doklad_nick}.&/do Удостоверение находиться в левом кармане брюк.&/me достал{sex} удостоверение и раскрыл{sex} его перед человеком.&/do В удостоверении указано: {fraction} - {fraction_rank} {my_doklad_nick}.&Назовите причину прибытия на территорию на нашу базу.&И предоставьте мне свои документы для проверки!', arg = '', enable = true, waiting = '2', in_fastmenu = true  },
+					{cmd = 'agenda' , description = 'Выдача повестки игроку' ,  text = '/do В папке с документами лежит ручка и пустой бланк с надписью Повестка.&/me достаёт из папки ручку с пустым бланком повестки&/me начинает заполнять все необходимые поля на бланке повестки&/do Все данные в повестке заполнены.&/me ставит на повестку штамп и печать {fraction_tag}&/do Готовый бланк повестки в руках.&/todo Не забудьте явиться в военкомат по указанному адресу и времени*передавая повестку&/agenda {arg_id}', arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true},
+					{cmd = 'siren' , description = 'Вкл/выкл мигалок в т/с' , text = '{switchCarSiren}', arg = '' , enable = true , waiting = '2', bind = "{}"},
+				},
+				prison = {
+					{cmd = 't' , description = 'Достать тазер' ,  text = '/taser', arg = '', enable = true, waiting = '2', },
+					{cmd = 'cuff', description = 'Надеть наручники', text = '/do Наручники на тактическом поясе.&/me снимает наручники с пояса и надевает их на задержанного&/cuff {arg_id}&/do Задержанный в наручниках.', arg = '{arg_id}', enable = true, waiting = '2', in_fastmenu = true},
+					{cmd = 'uncuff', description = 'Снять наручники', text = '/do На тактическом поясе прикреплены ключи от наручников.&/me снимает с пояса ключ от наручников и вставляет их в наручники задержанного&/me прокручивает ключ в наручниках и снимает их с задержанного&/uncuff {arg_id}&/do Наручники сняты с задержанного&/me кладёт ключ и наручники обратно на тактический пояс', arg = '{arg_id}', enable = true, waiting = '2', in_fastmenu = true},
+					{cmd = 'gotome', description = 'Повести за собой', text = '/me схватывает задержанного за руки и ведёт его за собой&/gotome {arg_id}&/do Задержанный идёт в конвое.', arg = '{arg_id}', enable = true, waiting = '2', in_fastmenu = true},
+					{cmd = 'ungotome', description = 'Перестать вести за собой', text = '/me отпускает руки задержанного и перестаёт вести его за собой&/ungotome {arg_id}', arg = '{arg_id}', enable = true, waiting = '2', in_fastmenu = true},
+					{cmd = 'take', description = 'Изьять предметы у игрока (6+)', text = '/do В подсумке находиться небольшой зип-пакет.&/me достаёт из подсумка зип-пакет и отрывает его&/me кладёт в зип-пакет изъятые предметы задержанного человека&/take {arg_id}&/do Изъятые предметы в зип-пакете.&/todo Отлично*убирая зип-пакет в подсумок', arg = '{arg_id}', enable = true, waiting = '2', in_fastmenu = true},
+					{cmd = 'carcer', description = 'Посадка игрока в карцер',text = '/do На поясе висит связка ключей.&/me прислонив заключённого к стене, снял ключ со связки, открыл дверцу камеры&/me лёгкими движениями рук затолкнул заключённого в камеру, после чего закрыл её&/me лёгкими движениями рук закрепил ключ к связке&/carcer {arg_id} {arg2} {arg3} {arg4}',arg = '{arg_id} {arg2} {arg3} {arg4}', enable = true, waiting = '2'},
+					{cmd = 'setcarcer', description = 'Смена карцера игроку', text = '/do На поясе висит связка ключей.&/me лёгкими движениями рук снял ключ со связки, открыл свободную камеру и камеру заключённого&/me вытолкнул заключённого из первой камеры, затолкнул во вторую, закрыв двери обоих камер&/me лёгкими движениями рук закрепил ключ к связке&/setcarcer {arg_id} {arg2}', arg = '{arg_id}, {arg2}', enable = true, waiting = '2'},
+					{cmd = 'uncarcer', description = 'Выпуск игрока из карцера', text = '/do На поясе висит связка ключей.&/me движениями рук снял ключ со связки, открыл камеру и вытолкнул из неё заключённого&/me закрыл дверцу камеры, закрепил ключ к связке&/uncarcer {arg_id}', arg = '{arg_id}', enable = true, waiting = '2' },
+					{cmd = 'frisk', description = 'Обыск заключённого', text = '/do Перчатки на поясе.&/me схватил перчатки и одел&/do Перчатки одеты.&/me начал нащупывать человека напротив&/frisk {arg_id}', arg = '{arg_id}', enable = true, waiting = '2', in_fastmenu = true},
+					{cmd = 'punishsu', description = 'Повысить уровень наказания.', text ='/me достаёт свой КПК и открывает базу данных тюрьмы&/me вносит изменения в базу данных тюрьмы&/do Изменения занесены в базу данных тюрьмы.&/punish {arg_id} {arg2} 2 {arg3}', arg = '{arg_id} {arg2} {arg3}', enable = true, waiting = '2'},
+					{cmd = 'punishclear', description = 'Понизить уровень наказания', text = '/me достаёт блокнот из нагрудного кармана&/do Блокнот в руке.&/me открывает его на странице с записями о поведении заключённых.&/do В блокноте видна запись: "{get_rp_nick({arg_id})}, примерное поведение...&/do ...участие в уборке территории, отсутствие нарушений."&/me берёт ручку и записывает новую информацию о заключённом.&/do В блокноте добавлена запись: "Рекомендация на сокращение срока...&/do ...на {arg2} года за добросовестное выполнение обязанностей."&/me закрывает блокнот и убирает его обратно в карман формы.&/do Данные о заключённом зафиксированы...&/do ...для последующего рассмотрения администрацией.&/punish {arg_id} {arg2} 1 {arg3}', arg = '{arg_id} {arg2} {arg3}', enable = true, waiting = '2'},
+				},
+			},
+			commands_manage = {
+				my = {},
+				goss = {
+					{cmd = 'inv' , description = 'Принятие игрока в организацию' , text = '/do В кармане есть связка с ключами от раздевалки.&/me достаёт из кармана один ключ из связки ключей от раздевалки&/todo Возьмите, это ключ от нашей раздевалки*передавая ключ человеку напротив&/invite {arg_id}' , arg = '{arg_id}', enable = true, waiting = '2'  , bind = "{}", in_fastmenu = true  },
+					{cmd = 'sr' , description = 'Продажа ранга (частные)' , text = '/me достаёт документы на подпись и передаёт их человеку напротив&{sellrank({arg_id})}' , arg = '{arg_id}', enable = true, waiting = '2'  , bind = "{}", in_fastmenu = true },
+					{cmd = 'rp' , description = 'Выдача сотруднику /fractionrp' , text = '/fractionrp {arg_id}' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true  },
+					{cmd = 'gr' , description = 'Повышение/понижение cотрудника' , text = '{show_rank_menu}&/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает телефон обратно в карман&/giverank {arg_id} {get_rank}&/r Сотрудник {get_ru_nick({arg_id})} получил новую должность!' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true   },
+					{cmd = 'vize' , description = 'Управление Vice City визой сотрудника' , text = '/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает телефон обратно в карман&{lmenu_vc_vize}' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true    },
+					{cmd = 'cjob' , description = 'Посмотреть успешность сотрудника' , text = '/checkjobprogress {arg_id}' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true   },	
+					{cmd = 'fmutes' , description = 'Выдать мут сотруднику (10 min)' , text = '/fmutes {arg_id} Н.У.&/r Сотрудник {get_ru_nick({arg_id})} лишился права использовать рацию на 10 минут!' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true },
+					{cmd = 'funmute' , description = 'Снять мут сотруднику' , text = '/funmute {arg_id}&/r Сотрудник {get_ru_nick({arg_id})} теперь может пользоваться рацией!' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}", in_fastmenu = true   },
+					{cmd = 'vig' , description = 'Выдача выговора cотруднику' , text = '/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает телефон обратно в карман&/fwarn {arg_id} {arg2}&/r Сотруднику {get_ru_nick({arg_id})} выдан выговор! Причина: {arg2}' , arg = '{arg_id} {arg2}', enable = true, waiting = '2'  , bind = "{}"},
+					{cmd = 'unvig' , description = 'Снятие выговора cотруднику' , text = '/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает телефон обратно в карман&/unfwarn {arg_id}&/r Сотруднику {get_ru_nick({arg_id})} был снят выговор!' , arg = '{arg_id}', enable = true, waiting = '2', bind = "{}" , in_fastmenu = true  },
+					{cmd = 'unv' , description = 'Увольнение игрока из фракции' , text = '/me достаёт из кармана свой телефон и заходит в базу данных {fraction_tag}&/me изменяет информацию о сотруднике {get_ru_nick({arg_id})} в базе данных {fraction_tag}&/me выходит с базы данных и убирает свой телефон обратно в карман&/uninvite {arg_id} {arg2}&/r Сотрудник {get_ru_nick({arg_id})} был уволен по причине: {arg2}' , arg = '{arg_id} {arg2}', enable = true, waiting = '2', bind = "{}"   },
+					{cmd = 'point' , description = 'Установить метку для сотрудников' , text = '/r Срочно выдвигайтесь ко мне, отправляю вам координаты...&/point' , arg = '', enable = true, waiting = '2', bind = "{}"},
+					{cmd = 'govka' , description = 'Собеседование по госс.волне' , text = '/d [{fraction_tag}] - [Всем]: Занимаю государственную волну, просьба не перебивать!&/gov [{fraction_tag}]: Доброго времени суток, уважаемые жители нашего штата!&/gov [{fraction_tag}]: Сейчас проходит собеседование в организацию {fraction}&/gov [{fraction_tag}]: Для вступления вам нужно иметь документы и приехать к нам в холл.&/d [{fraction_tag}] - [Всем]: Освобождаю  государственную волну, спасибо что не перебивали.' , arg = '', enable = true, waiting = '2', bind = "{}"},
+				},
+				goss_prison = {
+					{cmd = 'unpunish', description = 'Выпуск заключённых из ТСР', text = '/me лёгкими движениями рук берёт дело заключённого с полки, кладёт его на стол&/do На столе лежит ручка и печать.&/me лёгким движением правой руки берёт ручку, заполняет поле в деле заключённого&/me лёгкими движениями рук кладёт ручку на стол, берёт печать и ставит её в деле&/me лёгкими движениями рук ставит печать на стол, после чего закрывает дело&Ваш срок укорочен, возвращайтесь в камеру и ожидайте ...&... транспортировки до ближайшего населённого пункта.&/unpunish {arg_id} {arg2}', arg = '{arg_id} {arg2}', enable = true, waiting = '2'},
+					{cmd = 'rjailreklama', description = 'Реклама УДО', text = '/rjail Доброго времени суток заключенные.&/rjail В данный момент Вы можете покинуть тюрьму досрочно, через кабинет начальства тюрьмы.&/rjail Обратите внимание, УДО (условно дорочное освобожение) платное!&/rjail Спасибо за внимание.', arg = '', enable = true, waiting = '2'}
+				},
+			}
+		}
+	},
 }
 function load_module(key)
     local obj = modules[key]
@@ -709,17 +821,17 @@ end
 ---------------------------------------------- JSON RPGUNS  ------------------------------------------------------
 local MODULE = {
     Initial = {
-		Window = imgui.new.bool(),
-		input = imgui.new.char[256](),
-		slider = imgui.new.int(0),
-		step = 0,
-		fraction_type_selector = 0,
-		fraction_type_selector_text = 'Без организации',
-		fraction_type_icon = nil,
-		step2_result = 0,
-		fraction_selector = 0,
-		fraction_selector_text = '',
-	},
+        Window = imgui.new.bool(),
+        input = imgui.new.char[256](),
+        slider = imgui.new.int(0),
+        step = 0,
+        fraction_type_selector = 0,
+        fraction_type_selector_text = 'Без организации',
+        fraction_type_icon = nil,
+        step2_result = 0,
+        fraction_selector = 0,
+        fraction_selector_text = ''
+    },
     RPWeapon = {
         Window = imgui.new.bool(),
         ComboTags = imgui.new.int(),
@@ -730,6 +842,51 @@ local MODULE = {
             u8 'Спина', u8 'Карман', u8 'Пояс', u8 'Кобура'
         }),
         input_search = imgui.new.char[256]('')
+    },
+    Binder = {
+        Window = imgui.new.bool(),
+        waiting_slider = imgui.new.float(0),
+        ComboTags = imgui.new.int(),
+        input_cmd = imgui.new.char[256](),
+        input_description = imgui.new.char[256](),
+        input_text = imgui.new.char[8192](),
+        item_list = {
+            u8('Без аргументов'),
+            u8('{arg} Любое значение'),
+            u8('{arg_id} ID игрока | Пример /cure 429'), u8(
+                '{arg_id} ID {arg2} любое значение | Пример /vig 429 Без бейджика'),
+            u8(
+                '{arg_id} ID {arg2} число {arg3} любое | Пример /su 429 2 Неподчинение'),
+            u8(
+                '{arg_id} ID {arg2} число {arg3} любое {arg4} любое | Пример /carcer 429 1 5 Н.П.Т')
+        },
+        ImItems = nil,
+        data = {
+            change_waiting = nil,
+            change_cmd = nil,
+            change_text = nil,
+            change_arg = nil,
+            change_bind = nil,
+            create_command_9_10 = false,
+            input_description = nil
+        },
+        state = {isActive = false, isStop = false, isPause = false},
+        tags = {},
+        tags_text = ''
+    },
+    Note = {
+        Window = imgui.new.bool(),
+        input_text = imgui.new.char[1048576](),
+        input_name = imgui.new.char[256](),
+        show_note_name = '',
+        show_note_text = ''
+    },
+    Members = {
+        Window = imgui.new.bool(),
+        all = {},
+        new = {},
+        upd = {},
+        info = {fraction = '', check = false}
     },
     FONT = nil
 }
@@ -744,10 +901,59 @@ local commands = {
             enable = true,
             waiting = '3.5'
         }, {
+            cmd = 'take',
+            description = 'Изьятие предметов игрока',
+            text = '/do В подсумке находиться небольшой зип-пакет.&/me достаёт из подсумка зип-пакет и отрывает его&/me кладёт в зип-пакет изьятые предметы задержанного человека&/take {arg_id}&/do Изьятые предметы в зип-пакете.&/todo Отлично*убирая зип-пакет в подсумок',
+            arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
             cmd = 'cure',
             description = 'Поднять игрока из стадии',
             text = '/me наклоняется над человеком, и прощупывает его пульс на сонной артерии&/cure {arg_id}&/do Пульс отсутствует.&/me начинает делать человеку непрямой массаж сердца, время от времени проверяя пульс&/do Спустя несколько минут сердце человека началось биться.&/do Человек пришел в сознание.&/todo Отлично*улыбаясь',
             arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'uncarcer',
+            description = 'Выпуск из карцера игрока',
+            text = '/do На поясе висит связка ключей.&/me движениями рук снял ключ со связки, открыл камеру и вытолкнул из неё заключённого&/me закрыл дверцу камеры, закрепил ключ к связке&/uncarcer {arg_id}',
+            arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'cuff',
+            description = 'Надеть наручники',
+            text = '/do Наручники на тактическом поясе.&/me снимает наручники с пояса и надевает их на задержанного&/cuff {arg_id}&/do Задержанный в наручниках.',
+            arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'uncuff',
+            description = 'Снять наручники',
+            text = '/do На тактическом поясе прикреплены ключи от наручников.&/me снимает с пояса ключ от наручников и вставляет их в наручники задержанного&/me прокручивает ключ в наручниках и снимает их с задержанного&&/uncuff {arg_id}&/do Наручники сняты с задержанного&/me кладёт ключ и наручники обратно на тактический пояс',
+            arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'gotome',
+            description = 'Повести за собой',
+            text = '/me схватывает задержанного за руки и ведёт его за собой&/gotome {arg_id}&/do Задержанный идёт в конвое.',
+            arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'ungotome',
+            description = 'Перестать вести за собой',
+            text = '/me отпускает руки задержанного и перестаёт вести его за собой&/ungotome {arg_id}',
+            arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 't',
+            description = 'Достать тазер',
+            text = '/taser',
+            arg = '',
             enable = true,
             waiting = '3.5'
         }, {
@@ -767,14 +973,14 @@ local commands = {
         }, {
             cmd = 'time',
             description = 'Посмотреть время',
-            text = '/me взглянул{sex} на свои часы с гравировкой Arizona One Love и посмотрел{sex} время&/time&/do На часах видно время {get_time}.',
+            text = '/me взглянул{sex} на свои часы с гравировкой MSP One Love и посмотрел{sex} время&/time&/do На часах видно время {get_time}.',
             arg = '',
             enable = false,
             waiting = '3.5'
         }, {
-            cmd = 'givepass',
-            description = 'Превращение тс в сертификат',
-            text = 'Перед тем, как начать, попрошу полностью опустошить багажник и снять весь тюнинг&А также убедиться, что пробег меньше либо равен 200 км&Если Вы все сделали, то можем приступать&{pause}&Окей, приступаем&/do Бланк для получения сертификата находится под в кармане.&/me засунув руку в карман, взял{sex} бланк, после чего протянул{sex} его человеку напротив&/todo Впишите сюда Ваши данные и поставьте подпись снизу*протягивая лист с ручкой&/givepass {arg_id}',
+            cmd = 'frisk',
+            description = 'Обыск заключённого',
+            text = '/do Перчатки на поясе.&/me схватил перчатки и одел&/do Перчатки одеты.&/me начал нащупывать человека напротив&/frisk {arg_id}',
             arg = '{arg_id}',
             enable = true,
             waiting = '3.5'
@@ -789,10 +995,38 @@ local commands = {
             enable = true,
             waiting = '3.5'
         }, {
-            cmd = 'frisk',
-            description = 'Обыск заключённого',
-            text = '/do Перчатки на поясе.&/me схватил перчатки и одел&/do Перчатки одеты.&/me начал нащупывать человека напротив&/frisk {arg_id}',
+            cmd = 'book',
+            description = 'Выдача игроку трудовой книги',
+            text = 'Оказывается у вас нету трудовой книги, но не переживайте!&Сейчас я вам выдам её, вам не нужно никуда ехать, секунду...&/me достаёт из своего кармана новую трудовую книжку и ставит на ней печать {fraction_tag}&/todo Берите*передавая трудовую книгу челоку напротив&/givewbook {arg_id} 100&/n {get_nick({arg_id})}, примите предложение в /offer чтобы получить трудовую книгу!',
             arg = '{arg_id}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'punishsu',
+            description = 'Повысить уровень наказания.',
+            text = '/me достаёт свой КПК и открывает базу данных преступников&/me вносит изменения в базу данных преступников&/do Преступник занесён в базу данных преступников.&/punish {arg_id} {arg2} 2 {arg3}',
+            arg = '{arg_id} {arg2} {arg3}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'punishclear',
+            description = 'Понизить уровень наказания',
+            text = '/me достаёт блокнот из нагрудного кармана&/do Блокнот в руке.&/me открывает его на странице с записями о поведении заключённых.&/do В блокноте видна запись: "{get_rp_nick({arg_id})}, примерное поведение...&/do ...участие в уборке территории, отсутствие нарушений."&/me берёт ручку и записывает новую информацию о заключённом.&/do В блокноте добавлена запись: "Рекомендация на сокращение срока...&/do ...на {arg2} года за добросовестное выполнение обязанностей."&/me закрывает блокнот и убирает его обратно в карман формы.&/do Данные о заключённом зафиксированы...&/do ...для последующего рассмотрения администрацией.',
+            arg = '{arg_id} {arg2} {arg3}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'carcer',
+            description = 'Посадка в карцер игрока',
+            text = '/do На поясе висит связка ключей.&/me прислонив заключённого к стене, снял ключ со связки, открыл дверцу камеры&/me лёгкими движениями рук затолкнул заключённого в камеру, после чего закрыл её&/me лёгкими движениями рук закрепил ключ к связке&/carcer {arg_id} {arg2} {arg3} {arg4}',
+            arg = '{arg_id} {arg2} {arg3} {arg4}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'setcarcer',
+            description = 'Смена карцера игроку',
+            text = '/do На поясе висит связка ключей.&/me лёгкими движениями рук снял ключ со связки, открыл свободную камеру и камеру заключённого&/me вытолкнул заключённого из первой камеры, затолкнул во вторую, закрыв двери обоих камер&/me лёгкими движениями рук закрепил ключ к связке&/setcarcer {arg_id} {arg2}',
+            arg = '{arg_id}, {arg2}',
             enable = true,
             waiting = '3.5'
         }
@@ -865,6 +1099,20 @@ local commands = {
             cmd = 'point',
             description = 'Установить метку для сотрудников',
             text = '/r Срочно выдвигайтесь ко мне, отправляю вам координаты...&/point',
+            arg = '',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'unpunish',
+            description = 'Выпуск заключённых из ТСР',
+            text = '/me лёгкими движениями рук берёт дело заключённого с полки, кладёт его на стол&/do На столе лежит ручка и печать.&/me лёгким движением правой руки берёт ручку, заполняет поле в деле заключённого&/me лёгкими движениями рук кладёт ручку на стол, берёт печать и ставит её в деле&/me лёгкими движениями рук ставит печать на стол, после чего закрывает дело&Ваш срок укорочен, возвращайтесь в камеру и ожидайте ...&... транспортировки до ближайшего населённого пункта.&/unpunish {arg_id} {arg2}',
+            arg = '{arg_id} {arg2}',
+            enable = true,
+            waiting = '3.5'
+        }, {
+            cmd = 'rjailreklama',
+            description = 'Реклама УДО',
+            text = '/rjail Доброго времени суток заключенные.&/rjail В данный момент Вы можете покинуть тюрьму досрочно, через кабинет начальства тюрьмы.&/rjail По УДО будет отказано людям, попавшим сюда по следующим причинам:&/rjail По статьям: 3.5 УК. За любое проявление расизма и национализма, ...&/rjail 5.1 УК. За совершение или планирование терроризма, ...&/rjail 3.1 УК. За похищение гражданина/группы граждан и удержание их в заложниках, ...&/rjail 5.6 УК. За соучастие в захватах, подрывах ...&/rjail ... а также при попадании в тюрьму по решению сената.&/rjail Спасибо за внимание.',
             arg = '',
             enable = true,
             waiting = '3.5'
@@ -1467,16 +1715,16 @@ local tagReplacements = {
             return " " .. getNameOfARZVehicleModel(getCarModel(closest_car)) ..
                        getVehPlateNumberByCarHandle(closest_car) .. CarColorName
         else
-            sampAddChatMessage(
-                "[Prison Helper] {ffffff}Не удалось получить модель ближайшего транспорта с водителем!",
-                0x6E6E6E)
+            sampAddChatMessage(script_tag ..
+                                   "{ffffff}Не удалось получить модель ближайшего транспорта с водителем!",
+                               0x6E6E6E)
             return ''
         end
     end,
     get_form_su = function() return form_su end
 }
 
-if MONET_DPI_SCALE == nil then MONET_DPI_SCALE = 1.0 end
+if settings.general.custom_dpi == nil then settings.general.custom_dpi = 1.0 end
 
 local binder_tags_text = [[
 {my_id} - Ваш ID
@@ -1644,11 +1892,11 @@ function welcome_message()
                                message_color_hex ..
                                getNameKeysFrom(settings.general.bind_mainmenu) ..
                                ' {ffffff}или введите команду ' ..
-                               message_color_hex .. '/gh', message_color)
+                               message_color_hex .. '/ph', message_color)
     else
         sampAddChatMessage(script_tag ..
                                '  {ffffff}Чтоб открыть меню хелпера введите команду ' ..
-                               message_color_hex .. '/gh', message_color)
+                               message_color_hex .. '/ph', message_color)
     end
 end
 
@@ -2000,312 +2248,173 @@ function find_and_use_command(cmd, cmd_arg)
 end
 
 function initialize_commands()
-    -- Регистрация команд из commands.commands
-    registerCommandsFrom(commands.commands)
-    -- Регистрация команд из commands.commands_manage
-    registerCommandsFrom(commands.commands_manage)
-    -- Регистрация всех комнад которые есть в json для 5+
-    registerCommandsFrom(commands.commands_senior_staff)
-
-    sampRegisterChatCommand("gh",
-                            function() MainWindow[0] = not MainWindow[0] end)
-    sampRegisterChatCommand("jm", show_fast_menu)
-    sampRegisterChatCommand("rpguns", function()
-        MODULE.RPWeapon.Window[0] = not MODULE.RPWeapon.Window[0]
-    end)
-    sampRegisterChatCommand("stop", function()
-        if isActiveCommand then
-            command_stop = true
-        else
-            sampAddChatMessage(script_tag ..
-                                   '  {ffffff}В данный момент нету никакой активной команды/отыгровки!',
-                               message_color)
-            play_error_sound()
-        end
-    end)
-    sampRegisterChatCommand("sum", function(arg)
-        if not isActiveCommand then
-            if isParamSampID(arg) then
-                if #smart_rptp ~= 0 then
-                    player_id = tonumber(arg)
-                    SumMenuWindow[0] = true
-                else
-                    sampAddChatMessage(script_tag ..
-                                           '  {ffffff}Сначало загрузите/отредактируйте умный регламент повышения срока в /gh',
-                                       message_color)
-                    play_error_sound()
-                end
-            else
-                sampAddChatMessage(script_tag ..
-                                       '  {ffffff}Используйте ' ..
-                                       message_color_hex ..
-                                       '/sum [ID игрока]', message_color)
-                play_error_sound()
-            end
-        else
-            sampAddChatMessage(script_tag ..
-                                   '  {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                               message_color)
-            play_error_sound()
-        end
-    end)
-    sampRegisterChatCommand("sob", function(arg)
-        if not isActiveCommand then
-            if isParamSampID(arg) then
-                player_id = tonumber(arg)
-                SobesMenu[0] = not SobesMenu[0]
-            else
-                sampAddChatMessage(script_tag ..
-                                       '  {ffffff}Используйте ' ..
-                                       message_color_hex ..
-                                       '/sob [ID игрока]', message_color)
-                play_error_sound()
-            end
-        else
-            sampAddChatMessage(script_tag ..
-                                   '  {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                               message_color)
-            play_error_sound()
-        end
-    end)
-    sampRegisterChatCommand("debug", function() debug_mode = not debug_mode end)
-    sampRegisterChatCommand("mask", function()
-        if not isActiveCommand then
-            isActiveCommand = true
-            if isMonetLoader() and settings.general.mobile_stop_button then
-                sampAddChatMessage(script_tag ..
-                                       '  {ffffff}Чтобы остановить отыгровку команды используйте ' ..
-                                       message_color_hex ..
-                                       '/stop {ffffff}или нажмите кнопку внизу экрана',
-                                   message_color)
-                CommandStopWindow[0] = true
-            elseif not isMonetLoader() and hotkey_no_errors and
-                settings.general.bind_command_stop and
-                settings.general.use_binds then
-                sampAddChatMessage(script_tag ..
-                                       '  {ffffff}Чтобы остановить отыгровку команды используйте ' ..
-                                       message_color_hex ..
-                                       '/stop {ffffff}или нажмите ' ..
-                                       message_color_hex ..
-                                       getNameKeysFrom(
-                                           settings.general.bind_command_stop),
-                                   message_color)
-            else
-                sampAddChatMessage(script_tag ..
-                                       '  {ffffff}Чтобы остановить отыгровку команды используйте ' ..
-                                       message_color_hex .. '/stop',
-                                   message_color)
-            end
-            if sampGetPlayerColor(select(2, sampGetPlayerIdByCharHandle(
-                                             PLAYER_PED))) == 23486046 then
-                lua_thread.create(function()
-                    sampSendChat('/do Балаклава на голове.')
-                    wait(1200)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /mask успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat(
-                        '/me стягивает балаклаву с головы и прицепляет её к тактичекому поясу')
-                    wait(1200)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /mask успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat('/mask')
-                    wait(1200)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /mask успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat(
-                        '/do Балаклава прикреплена к тактическому поясу.')
-                    isActiveCommand = false
-                end)
-            else
-                lua_thread.create(function()
-                    sampSendChat(
-                        '/do Балаклава прикреплена к тактическому поясу.')
-                    wait(1200)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /mask успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat(
-                        '/me достаёт балаклаву и натягивает её себе на голову')
-                    wait(1200)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /mask успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat('/mask')
-                    wait(1200)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /mask успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat('/do Балаклава на голове.')
-                    isActiveCommand = false
-                end)
-            end
-        else
-            sampAddChatMessage(script_tag ..
-                                   '  {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                               message_color)
-            play_error_sound()
-        end
-    end)
-    sampRegisterChatCommand("mb", function(arg)
-        if not isActiveCommand then
-            if MembersWindow[0] then
-                MembersWindow[0] = false
-            else
-                members_new = {}
-                members_check = true
-                sampSendChat("/members")
-                -- MembersWindow[0] = true
-            end
-        else
-            sampAddChatMessage(script_tag ..
-                                   '  {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                               message_color)
-            play_error_sound()
-        end
-    end)
-    sampRegisterChatCommand("dep", function(arg)
-        if not isActiveCommand then
-            DeportamentWindow[0] = not DeportamentWindow[0]
-        else
-            sampAddChatMessage(script_tag ..
-                                   '  {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                               message_color)
-            play_error_sound()
-        end
-    end)
-
-    if tonumber(settings.player_info.fraction_rank_number) >= 9 then
-        sampRegisterChatCommand("jlm", show_leader_fast_menu)
-        sampRegisterChatCommand("spcar", function()
-            if not isActiveCommand then
-                lua_thread.create(function()
-                    isActiveCommand = true
-                    if isMonetLoader() and settings.general.mobile_stop_button then
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Чтобы остановить отыгровку команды используйте ' ..
-                                               message_color_hex ..
-                                               '/stop {ffffff}или нажмите кнопку внизу экрана',
-                                           message_color)
-                        CommandStopWindow[0] = true
-                    elseif not isMonetLoader() and hotkey_no_errors and
-                        settings.general.bind_command_stop and
-                        settings.general.use_binds then
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Чтобы остановить отыгровку команды используйте ' ..
-                                               message_color_hex ..
-                                               '/stop {ffffff}или нажмите ' ..
-                                               message_color_hex ..
-                                               getNameKeysFrom(
-                                                   settings.general
-                                                       .bind_command_stop),
-                                           message_color)
-                    else
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Чтобы остановить отыгровку команды используйте ' ..
-                                               message_color_hex .. '/stop',
-                                           message_color)
-                    end
-                    sampSendChat(
-                        "/rb Внимание! Через 15 секунд будет спавн транспорта организации.")
-                    wait(1500)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /spcar успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    sampSendChat(
-                        "/rb Займите транспорт, иначе он будет заспавнен.")
-                    wait(13500)
-                    if command_stop then
-                        command_stop = false
-                        isActiveCommand = false
-                        if isMonetLoader() and
-                            settings.general.mobile_stop_button then
-                            CommandStopWindow[0] = false
-                        end
-                        sampAddChatMessage(script_tag ..
-                                               '  {ffffff}Отыгровка команды /spcar успешно остановлена!',
-                                           message_color)
-                        return
-                    end
-                    spawncar_bool = true
-                    sampSendChat("/lmenu")
-                    isActiveCommand = false
-                    if isMonetLoader() and settings.general.mobile_stop_button then
-                        CommandStopWindow[0] = false
-                    end
-                end)
-            else
-                sampAddChatMessage(script_tag ..
-                                       '  {ffffff}Дождитесь завершения отыгровки предыдущей команды!',
-                                   message_color)
-            end
-        end)
-    end
+	sampRegisterChatCommand("ph", function() 
+		MainWindow[0] = not MainWindow[0] 
+	end)
+	sampRegisterChatCommand("binder", function() 
+		MainWindow[0] = true
+		sampAddChatMessage('[Arizona Helper] {ffffff}Биндер находиться во вкладке "Команды и RP отыгровки" -> "RP команды"', message_color)
+	end)
+	sampRegisterChatCommand("hm", show_fast_menu)
+	sampRegisterChatCommand("stop", function()
+		if isActiveCommand then
+			command_stop = true
+		else
+			sampAddChatMessage(script_tag .. '  {ffffff}В данный момент нету никакой активной команды/отыгровки!',
+				message_color)
+			play_error_sound()
+		end
+	end)
+	sampRegisterChatCommand("fixsize", function()
+		settings.general.custom_dpi = 1.0
+		settings.general.autofind_dpi = false
+		sampAddChatMessage('[Arizona Helper] {ffffff}Размер интерфейса хелпера сброшен к стандартному значению! Перезапуск...', message_color)
+		save_settings()
+		reload_script = true
+		thisScript():reload()
+	end)
+	sampRegisterChatCommand("rpguns", function()
+		if settings.general.rp_guns then
+			MODULE.RPWeapon.Window[0] = not MODULE.RPWeapon.Window[0] 
+		else
+			sampAddChatMessage('[Arizona Helper] {ffffff}Включите функцию "RP отыгровка оружия" в /helper -> Функции ' .. settings.player_info.fraction_tag, message_color)
+		end
+	end)
+	sampRegisterChatCommand("activate", function() 
+		if thisScript().version:find('VIP') then
+			sampAddChatMessage('[Arizona Helper] {ffffff}У вас уже установлена VIP версия, и все функции вам доступны!', message_color) 
+		else
+			sampAddChatMessage('[Arizona Helper] {ffffff}К сожалению нельзя прямо из игры перейти на VIP версию!', message_color) 
+			sampAddChatMessage('[Arizona Helper] {ffffff}Перейдите в Telegram/Discord VIP бота (@mtgmods_vip_bot), и активируйте ключик', message_color) 
+			sampAddChatMessage('[Arizona Helper] {ffffff}После активации ключика, в боте используйте команду /helper для получения VIP', message_color)
+		end
+	end)
+	sampRegisterChatCommand("debug", function() 
+		MODULE.DEBUG = not MODULE.DEBUG 
+		sampAddChatMessage('[Arizona Helper] {ffffff}Отслеживание данных с сервера ' .. (MODULE.DEBUG and 'включено!' or 'выключено!'), message_color) 
+	end)
+	if not isMode('none') then
+		sampRegisterChatCommand("mb", function(arg)
+			if not MODULE.Binder.state.isActive then
+				if MODULE.Members.Window[0] then
+					MODULE.Members.Window[0] = false
+					MODULE.Members.upd.check = false
+					sampAddChatMessage('[Arizona Helper] {ffffff}Меню списка сотрудников закрыто!', message_color)
+				else
+					MODULE.Members.new = {} 
+					MODULE.Members.info.check = true 
+					sampSendChat("/members")
+				end
+			else
+				sampAddChatMessage('[Arizona Helper] {ffffff}Дождитесь завершения отыгровки предыдущей команды!', message_color)
+				playNotifySound()
+			end
+		end)
+		sampRegisterChatCommand("dep", function(arg)
+			if not MODULE.Binder.state.isActive then
+				MODULE.Departament.Window[0] = not MODULE.Departament.Window[0]
+			else
+				sampAddChatMessage('[Arizona Helper] {ffffff}Дождитесь завершения отыгровки предыдущей команды!', message_color)
+				playNotifySound()
+			end
+		end)
+		sampRegisterChatCommand("sob", function(arg)
+			if not MODULE.Binder.state.isActive then
+				if isParamSampID(arg) then
+					player_id = tonumber(arg)
+					MODULE.Sobes.Window[0] = not MODULE.Sobes.Window[0]
+				else
+					sampAddChatMessage('[Arizona Helper] {ffffff}Используйте ' .. message_color_hex .. '/sob [ID игрока]', message_color)
+					playNotifySound()
+				end	
+			else
+				sampAddChatMessage('[Arizona Helper] {ffffff}Дождитесь завершения отыгровки предыдущей команды!', message_color)
+				playNotifySound()
+			end
+		end)
+	end
+	if isMode('prison') then
+		sampRegisterChatCommand("pum", function(arg) 
+			if not MODULE.Binder.state.isActive then
+				if isParamSampID(arg) then
+					if #modules.smart_rptp.data ~= 0 then
+						player_id = tonumber(arg)
+						MODULE.PumMenu.Window[0] = true 
+					else
+						sampAddChatMessage('[Arizona Helper] {ffffff}Сначало загрузите/заполните систему умного срока в /helper - Функции ' .. settings.player_info.fraction_tag, message_color)
+						playNotifySound()
+					end
+				else
+					sampAddChatMessage('[Arizona Helper] {ffffff}Используйте ' .. message_color_hex .. '/pum [ID игрока]', message_color)
+					playNotifySound()
+				end	
+			else
+				sampAddChatMessage('[Arizona Helper] {ffffff}Дождитесь завершения отыгровки предыдущей команды!', message_color)
+				playNotifySound()
+			end
+		end)
+	end
+	for _, command in ipairs(modules.commands.data.commands.my) do
+		if command.enable then
+			register_command(command.cmd, command.arg, command.text, tonumber(command.waiting))
+		end
+	end
+	if settings.player_info.fraction_rank_number >= 9 then
+		sampRegisterChatCommand("lm", show_leader_fast_menu)
+		sampRegisterChatCommand("spcar", function()
+			if not MODULE.Binder.state.isActive then
+				lua_thread.create(function()
+					MODULE.Binder.state.isActive = true
+					info_stop_command()
+					sampSendChat("/rb Внимание! Через 15 секунд будет спавн транспорта организации.")
+					wait(1500)
+					if MODULE.Binder.state.isStop then 
+						MODULE.Binder.state.isStop = false 
+						MODULE.Binder.state.isActive = false
+						if IS_MOBILE and settings.general.mobile_stop_button then
+							MODULE.CommandStop.Window[0] = false
+						end
+						sampAddChatMessage('[Arizona Helper] {ffffff}Отыгровка команды /spcar успешно остановлена!', message_color) 
+						return
+					end
+					sampSendChat("/rb Займите транспорт, иначе он будет заспавнен.")
+					wait(13500)	
+					if MODULE.Binder.state.isStop then 
+						MODULE.Binder.state.isStop = false 
+						MODULE.Binder.state.isActive = false
+						if IS_MOBILE and settings.general.mobile_stop_button then
+							MODULE.CommandStop.Window[0] = false
+						end
+						sampAddChatMessage('[Arizona Helper] {ffffff}Отыгровка команды /spcar успешно остановлена!', message_color) 
+						return
+					end
+					MODULE.LeadTools.spawncar = true
+					sampSendChat("/lmenu")
+					MODULE.Binder.state.isActive = false
+					if IS_MOBILE and settings.general.mobile_stop_button then
+						MODULE.CommandStop.Window[0] = false
+					end
+				end)
+			else
+				sampAddChatMessage('[Arizona Helper] {ffffff}Дождитесь завершения отыгровки предыдущей команды!', message_color)
+			end
+		end)
+		sampRegisterChatCommand('fcleaner', function (arg)
+			if arg:find('(%d+)') then
+				MODULE.LeadTools.cleaner.players_to_kick = {}
+				MODULE.LeadTools.cleaner.day_afk = tonumber(arg)
+				MODULE.LeadTools.cleaner.uninvite = true
+				sampSendChat('/lmenu')
+			else
+				sampAddChatMessage('[Arizina Helper] {ffffff}Используйте ' .. message_color_hex .. '/fcleaner [кол-во дней афк для кика]', message_color)
+			end
+		end)
+		for _, command in ipairs(modules.commands.data.commands_manage.my) do
+			if command.enable then
+				register_command(command.cmd, command.arg, command.text, tonumber(command.waiting))
+			end
+		end
+	end
 end
 
 local russian_characters = {
@@ -2755,14 +2864,14 @@ function isEnableWeapon(id)
     return false
 end
 function handleNewWeapon(weaponId)
-    sampAddChatMessage(
-        '[Prison Helper] {ffffff}Обнаружено новое оружие с ID ' ..
-            message_color_hex .. weaponId ..
-            '{ffffff}, даю ему имя "оружие" и расположение "спина".',
-        message_color)
-    sampAddChatMessage(
-        '[Prison Helper] {ffffff}Изменить имя или расположение оружия вы можете в /helper - Главное меню - Режим RP отыгровки оружия - Настроить',
-        message_color)
+    sampAddChatMessage(script_tag ..
+                           '{ffffff}Обнаружено новое оружие с ID ' ..
+                           message_color_hex .. weaponId ..
+                           '{ffffff}, даю ему имя "оружие" и расположение "спина".',
+                       message_color)
+    sampAddChatMessage(script_tag ..
+                           '{ffffff}Изменить имя или расположение оружия вы можете в /helper - Главное меню - Режим RP отыгровки оружия - Настроить',
+                       message_color)
     table.insert(modules.rpgun.data.rp_guns, {
         id = weaponId,
         name = "оружие",
@@ -4159,12 +4268,12 @@ function check_update()
                     local uVer = updateInfo.current_version
                     local uUrl = updateInfo.update_url
                     local uText = updateInfo.update_info
-                    print(
-                        "[Prison Helper] Текущая установленная версия:",
-                        thisScript().version)
-                    print(
-                        "[Prison Helper] Текущая версия в облаке:",
-                        uVer)
+                    print(script_tag ..
+                              "Текущая установленная версия:",
+                          thisScript().version)
+                    print(script_tag ..
+                              "Текущая версия в облаке:",
+                          uVer)
                     if thisScript().version ~= uVer then
                         print(script_tag ..
                                   '  Доступно обновление!')
@@ -4194,12 +4303,12 @@ function check_update()
                     local uVer = updateInfo.current_version
                     local uUrl = updateInfo.update_url
                     local uText = updateInfo.update_info
-                    print(
-                        "[Prison Helper] Текущая установленная версия:",
-                        thisScript().version)
-                    print(
-                        "[Prison Helper] Текущая версия в облаке:",
-                        uVer)
+                    print(script_tag ..
+                              "Текущая установленная версия:",
+                          thisScript().version)
+                    print(script_tag ..
+                              "Текущая версия в облаке:",
+                          uVer)
                     if thisScript().version ~= uVer then
                         print(script_tag ..
                                   '  Доступно обновление!')
@@ -4224,16 +4333,16 @@ function check_update()
     end
     function readJsonFile(filePath)
         if not doesFileExist(filePath) then
-            print("[Prison Helper] Ошибка: Файл " .. filePath ..
+            print(script_tag .. "Ошибка: Файл " .. filePath ..
                       " не существует")
             return nil
         end
 
         local file, err = io.open(filePath, "r")
         if not file then
-            print(
-                "[Prison Helper] Ошибка при открытии файла " ..
-                    filePath .. ": " .. err)
+            print(script_tag ..
+                      "Ошибка при открытии файла " ..
+                      filePath .. ": " .. err)
             return nil
         end
 
@@ -4242,9 +4351,9 @@ function check_update()
 
         local jsonData = decodeJson(content)
         if not jsonData then
-            print(
-                "[Prison Helper] Ошибка: Неверный формат JSON в файле " ..
-                    filePath)
+            print(script_tag ..
+                      "Ошибка: Неверный формат JSON в файле " ..
+                      filePath)
             return nil
         end
 
@@ -4259,7 +4368,7 @@ function check_resourses()
     if not doesFileExist(configDirectory .. '/Resourse/logotype.png') then
         print('Подгружаю логотип хелпера...')
         downloadFileFromUrlToPath(
-            'https://alexwright55.github.io/Goverment-Helper/Goverment%20Helper/Resourse/logotype.png',
+            'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/Resourse/logotype.png',
             configDirectory .. '/Resourse/logotype.png')
     end
 end
@@ -4450,7 +4559,7 @@ function sampev.onSendTakeDamage(playerId, damage, weapon)
             tonumber(playerId) ~= 0 and weapon then
             local weapon_name = get_name_weapon(weapon)
             if weapon_name then
-                sampAddChatMessage('[Prison Helper] {ffffff}Игрок ' ..
+                sampAddChatMessage(script_tag .. '{ffffff}Игрок ' ..
                                        sampGetPlayerNickname(playerId) .. '[' ..
                                        playerId ..
                                        '] напал на вас используя ' ..
@@ -4804,7 +4913,7 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
                     settings.player_info.fraction_tag = 'ФБР'
                 elseif settings.player_info.fraction:find(
                     'Тюрьма Строгого режима') then
-                    settings.player_info.fraction_tag = 'MSP'
+                    settings.player_info.fraction_tag = 'ТСР'
                 elseif settings.player_info.fraction == 'Армия SF' or
                     settings.player_info.fraction == 'Армия СФ' then
                     settings.player_info.fraction_tag = 'СФа'
@@ -4989,9 +5098,9 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
             MembersWindow[0] = true
         else
             sampSendDialogResponse(dialogid, 0, 0, 0)
-            sampAddChatMessage(
-                '[Prison Helper]{ffffff} Список сотрудников пуст!',
-                message_color)
+            sampAddChatMessage(script_tag ..
+                                   '{ffffff} Список сотрудников пуст!',
+                               message_color)
             members_check = false
         end
         return false
@@ -5002,11 +5111,140 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         sampSendDialogResponse(dialogid, 1, 0, 0)
         return false
     end
+
+    if ((MODULE.Members.info.check) and
+        (title:find('(.+)%(В сети: (%d+)%)') or
+            title:find(
+                'В сети всего .+ чле.+организации'))) then
+        local count = 0
+        local next_page = false
+        local next_page_i = 0
+        MODULE.Members.info.fraction = string.match(title, '(.+)%(В сети')
+        if MODULE.Members.info.fraction then
+            MODULE.Members.info.fraction = string.gsub(
+                                               MODULE.Members.info.fraction,
+                                               '{(.+)}', '')
+        else
+            MODULE.Members.info.fraction = settings.player_info.fraction -- rodina
+        end
+        for line in text:gmatch('[^\r\n]+') do
+            count = count + 1
+            if not line:find('страница') and
+                (not line:find('Ник') or not line:find('Имя')) then
+                local optional_info = ''
+                if line:find('{FFA500}%(Вы%)') then
+                    line = line:gsub("{FFA500}%(Вы%)", "")
+                    optional_info = '(Вы)'
+                end
+                if line:find(' %/ В деморгане') then
+                    line = line:gsub(" %/ В деморгане", "")
+                    optional_info = optional_info .. ' (JAIL)'
+                end
+                if line:find(' %/ MUTED') then
+                    line = line:gsub(" %/ MUTED", "")
+                    optional_info = optional_info .. ' (MUTE)'
+                end
+                if optional_info == '' then optional_info = '-' end
+                if line:find('{FFA500}%(%d+.+%)') then
+                    local color, nickname, id, rank, rank_number, color2,
+                          rank_time, warns, afk = string.match(line,
+                                                               "{(%x%x%x%x%x%x)}([%w_]+)%((%d+)%)%s*([^%(]+)%((%d+)%)%s*{(%x%x%x%x%x%x)}%(([^%)]+)%)%s*{FFFFFF}(%d+)%s*%[%d+%]%s*/%s*(%d+)%s*%d+ шт")
+                    if color ~= nil and nickname ~= nil and id ~= nil and rank ~=
+                        nil and rank_number ~= nil and warns ~= nil and afk ~=
+                        nil then
+                        local working = false
+                        if color:find('90EE90') then
+                            working = true
+                        end
+                        if rank_time then
+                            rank_number = rank_number .. ') (' .. rank_time
+                        end
+                        table.insert(MODULE.Members.new, {
+                            nick = nickname,
+                            id = id,
+                            rank = rank,
+                            rank_number = rank_number,
+                            warns = warns,
+                            afk = afk,
+                            working = working,
+                            info = optional_info
+                        })
+                    end
+                else
+                    local color, nickname, id, rank, rank_number, rank_time,
+                          warns, afk = string.match(line,
+                                                    "{(%x%x%x%x%x%x)}%s*([^%(]+)%((%d+)%)%s*([^%(]+)%((%d+)%)%s*([^{}]+){FFFFFF}%s*(%d+)%s*%[%d+%]%s*/%s*(%d+)%s*%d+ шт")
+                    if color ~= nil and nickname ~= nil and id ~= nil and rank ~=
+                        nil and rank_number ~= nil and warns ~= nil and afk ~=
+                        nil then
+                        local working = false
+                        if color:find('90EE90') then
+                            working = true
+                        end
+                        table.insert(MODULE.Members.new, {
+                            nick = nickname,
+                            id = id,
+                            rank = rank,
+                            rank_number = rank_number,
+                            warns = warns,
+                            afk = afk,
+                            working = working,
+                            info = optional_info
+                        })
+                    end
+                end
+
+                -- rodina
+                if not rank or not nickname then
+                    local nickname, id, rank, rank_number, warns = line:match(
+                                                                       "(.+)%((%d+)%)%s+(.+)%((%d+)%).+(%d) / 3")
+                    if nickname and id and rank and rank_number and warns then
+                        table.insert(MODULE.Members.new, {
+                            nick = nickname,
+                            id = id,
+                            rank = rank,
+                            rank_number = rank_number,
+                            warns = warns,
+                            afk = 0,
+                            working = true,
+                            info = optional_info
+                        })
+                    end
+                end
+            end
+            if line:match('Следующая страница') then
+                next_page = true
+                next_page_i = count - 2
+            end
+        end
+        if next_page then
+            sampSendDialogResponse(dialogid, 1, next_page_i, 0)
+            next_page = false
+            next_pagei = 0
+        elseif #MODULE.Members.new ~= 0 then
+            sampSendDialogResponse(dialogid, 0, 0, 0)
+            MODULE.Members.all = MODULE.Members.new
+            MODULE.Members.info.check = false
+            if not settings.general.auto_update_members then
+                sampAddChatMessage(
+                    '[Arizona Helper] {ffffff}Вы можете включить авто-обновление списка /mb /helper - Функции ' ..
+                        settings.player_info.fraction_tag .. '!', message_color)
+            end
+            MODULE.Members.Window[0] = true
+        else
+            sampSendDialogResponse(dialogid, 0, 0, 0)
+            sampAddChatMessage(
+                '[Arizona Helper]{ffffff} Список сотрудников пуст!',
+                message_color)
+            MODULE.Members.info.check = false
+        end
+        return false
+    end
 end
 
 imgui.OnInitialize(function()
     imgui.GetIO().IniFilename = ni
-    fa.Init(14 * MONET_DPI_SCALE)
+    fa.Init(14 * settings.general.custom_dpi)
     if settings.general.moonmonet_theme_enable and monet_no_errors then
         apply_moonmonet_theme()
     else
@@ -5043,24 +5281,26 @@ end)
 imgui.OnFrame(function() return MainWindow[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(630 * MONET_DPI_SCALE,
-                                         436 * MONET_DPI_SCALE),
+    imgui.SetNextWindowSize(imgui.ImVec2(610 * settings.general.custom_dpi,
+                                         440 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver) -- Размеры всего окна скрипта
     imgui.Begin(fa.BUILDING_SHIELD .. " Prison Helper##main", MainWindow,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
     if imgui.BeginTabBar('пон') then
         if imgui.BeginTabItem(fa.HOUSE .. u8 ' Главное меню') then
-            if imgui.BeginChild('##1', imgui.ImVec2(620 * MONET_DPI_SCALE,
-                                                    168 * MONET_DPI_SCALE), true) then -- Размеры первой вкладки
+            if imgui.BeginChild('##1',
+                                imgui.ImVec2(600 * settings.general.custom_dpi,
+                                             168 * settings.general.custom_dpi),
+                                true) then -- Размеры первой вкладки
                 imgui.CenterText(fa.USER_NURSE ..
                                      u8 ' Информация про сотрудника')
                 imgui.Separator()
                 imgui.Columns(3)
                 imgui.CenterColumnText(u8 "Имя и Фамилия:")
-                imgui.SetColumnWidth(-1, 280 * MONET_DPI_SCALE) -- Длина первого столбца
+                imgui.SetColumnWidth(-1, 280 * settings.general.custom_dpi) -- Длина первого столбца
                 imgui.NextColumn()
                 imgui.CenterColumnText(u8(settings.player_info.name_surname))
-                imgui.SetColumnWidth(-1, 230 * MONET_DPI_SCALE) -- Длина второго столбца
+                imgui.SetColumnWidth(-1, 230 * settings.general.custom_dpi) -- Длина второго столбца
                 imgui.NextColumn()
                 if imgui.CenterColumnSmallButton(
                     u8 'Изменить##name_surname') then
@@ -5081,18 +5321,20 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                              u8 ' Имя и Фамилия##name_surname',
                                          _, imgui.WindowFlags.NoCollapse +
                                              imgui.WindowFlags.NoResize) then
-                    imgui.PushItemWidth(405 * MONET_DPI_SCALE)
+                    imgui.PushItemWidth(405 * settings.general.custom_dpi)
                     imgui.InputText(u8 '##name_surname', input_name_surname, 256)
                     imgui.Separator()
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         imgui.CloseCurrentPopup()
                     end
                     imgui.SameLine()
                     if imgui.Button(fa.FLOPPY_DISK .. u8 ' Сохранить',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         settings.player_info.name_surname = u8:decode(
                                                                 ffi.string(
                                                                     input_name_surname))
@@ -5101,7 +5343,7 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     end
                     imgui.End()
                 end
-                imgui.SetColumnWidth(-1, 100 * MONET_DPI_SCALE)
+                imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi)
                 imgui.Columns(1)
                 imgui.Separator()
                 imgui.Columns(3)
@@ -5147,18 +5389,20 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                         save_settings()
                     end
                     imgui.SameLine()
-                    imgui.PushItemWidth(375 * MONET_DPI_SCALE)
+                    imgui.PushItemWidth(375 * settings.general.custom_dpi)
                     imgui.InputText(u8 '##accent_input', input_accent, 256)
                     imgui.Separator()
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         imgui.CloseCurrentPopup()
                     end
                     imgui.SameLine()
                     if imgui.Button(fa.FLOPPY_DISK .. u8 ' Сохранить',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         settings.player_info.accent =
                             u8:decode(ffi.string(input_accent))
                         save_settings()
@@ -5193,19 +5437,21 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     fa.BUILDING_SHIELD ..
                         u8 ' Тэг организации##fraction_tag', _,
                     imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize) then
-                    imgui.PushItemWidth(405 * MONET_DPI_SCALE)
+                    imgui.PushItemWidth(405 * settings.general.custom_dpi)
                     imgui.InputText(u8 '##input_fraction_tag',
                                     input_fraction_tag, 256)
                     imgui.Separator()
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         imgui.CloseCurrentPopup()
                     end
                     imgui.SameLine()
                     if imgui.Button(fa.FLOPPY_DISK .. u8 ' Сохранить',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         settings.player_info.fraction_tag = u8:decode(
                                                                 ffi.string(
                                                                     input_fraction_tag))
@@ -5233,14 +5479,16 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
 
                 imgui.EndChild()
             end
-            if imgui.BeginChild('##2', imgui.ImVec2(620 * MONET_DPI_SCALE,
-                                                    50 * MONET_DPI_SCALE), true) then
+            if imgui.BeginChild('##2',
+                                imgui.ImVec2(600 * settings.general.custom_dpi,
+                                             50 * settings.general.custom_dpi),
+                                true) then
                 imgui.CenterText(fa.ROBOT .. u8 ' Ассистент')
                 imgui.Separator()
                 imgui.Columns(2)
                 imgui.CenterColumnText(u8(
                                            "Ваш незаменимый помощник для автоматизации некоторых действий"))
-                imgui.SetColumnWidth(-1, 510 * MONET_DPI_SCALE)
+                imgui.SetColumnWidth(-1, 500 * settings.general.custom_dpi)
                 imgui.NextColumn()
                 if imgui.CenterColumnSmallButton(u8 'Управление') then
                     imgui.OpenPopup(fa.ROBOT ..
@@ -5251,11 +5499,13 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                          _, imgui.WindowFlags.NoCollapse +
                                              imgui.WindowFlags.NoResize) then
                     if not isMonetLoader() then
-                        imgui.SetWindowFontScale(MONET_DPI_SCALE)
+                        imgui.SetWindowFontScale(settings.general.custom_dpi)
                     end
                     imgui.BeginChild('##ai',
-                                     imgui.ImVec2(589 * MONET_DPI_SCALE,
-                                                  360 * MONET_DPI_SCALE), true)
+                                     imgui.ImVec2(
+                                         589 * settings.general.custom_dpi,
+                                         360 * settings.general.custom_dpi),
+                                     true)
                     if imgui.Checkbox(u8(
                                           ' Если до PAYDAY осталось 5 минут, то напоминать про него в чате'),
                                       checkbox_notify_payday) then
@@ -5264,27 +5514,31 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                         save_settings()
                     end
                     imgui.EndChild()
-                    if imgui.Button(fa.CIRCLE_XMARK .. u8 " Закрыть",
-                                    imgui.ImVec2(589 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
-                        imgui.CloseCurrentPopup()
-                    end
                     if imgui.Button(fa.ARROW_ROTATE_LEFT ..
-                                        u8 " Сбросить", imgui.ImVec2(
-                                        589 * MONET_DPI_SCALE,
-                                        25 * MONET_DPI_SCALE)) then
+                                        u8 " Сбросить",
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         settings.general.auto_notify_payday = false
                         checkbox_notify_payday[0] = false
                         save_settings()
                     end
+                    if imgui.Button(fa.CIRCLE_XMARK .. u8 " Закрыть",
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        imgui.CloseCurrentPopup()
+                    end
                     imgui.EndPopup()
                 end
-                imgui.SetColumnWidth(-1, 110 * MONET_DPI_SCALE)
+                imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi)
                 imgui.Columns(1)
                 imgui.EndChild()
             end
-            if imgui.BeginChild('##3', imgui.ImVec2(620 * MONET_DPI_SCALE,
-                                                    144 * MONET_DPI_SCALE), true) then -- Размеры окна "Дополнительные функции хелпера"
+            if imgui.BeginChild('##3',
+                                imgui.ImVec2(600 * settings.general.custom_dpi,
+                                             144 * settings.general.custom_dpi),
+                                true) then -- Размеры окна "Дополнительные функции хелпера"
                 imgui.CenterText(fa.SITEMAP ..
                                      u8 ' Дополнительные функции хелпера')
                 imgui.Separator()
@@ -5297,14 +5551,14 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     imgui.SetTooltip(
                         u8 "Отображение на экране менюшки с информацией")
                 end
-                imgui.SetColumnWidth(-1, 280 * MONET_DPI_SCALE) -- Длина названия пункта
+                imgui.SetColumnWidth(-1, 280 * settings.general.custom_dpi) -- Длина названия пункта
                 imgui.NextColumn()
                 if settings.general.use_info_menu then
                     imgui.CenterColumnText(u8 'Включено')
                 else
                     imgui.CenterColumnText(u8 'Отключено')
                 end
-                imgui.SetColumnWidth(-1, 230 * MONET_DPI_SCALE) -- Длина описание пункта
+                imgui.SetColumnWidth(-1, 230 * settings.general.custom_dpi) -- Длина описание пункта
                 imgui.NextColumn()
                 if settings.general.use_info_menu then
                     if imgui.CenterColumnSmallButton(
@@ -5321,7 +5575,7 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                         save_settings()
                     end
                 end
-                imgui.SetColumnWidth(-1, 100 * MONET_DPI_SCALE) -- Размер кнопки
+                imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi) -- Размер кнопки
                 imgui.Columns(1)
                 imgui.Separator()
                 imgui.Columns(3)
@@ -5466,22 +5720,27 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             if imgui.BeginTabBar('Tabs2') then
                 if imgui.BeginTabItem(fa.BARS ..
                                           u8 ' Общие команды для всех рангов ') then
-                    if imgui.BeginChild('##1', imgui.ImVec2(
-                                            619 * MONET_DPI_SCALE,
-                                            312 * MONET_DPI_SCALE), true) then -- Размеры вкладки "Команды и отыгровки"
+                    if imgui.BeginChild('##1',
+                                        imgui.ImVec2(
+                                            619 * settings.general.custom_dpi,
+                                            312 * settings.general.custom_dpi),
+                                        true) then -- Размеры вкладки "Команды и отыгровки"
                         imgui.Columns(3)
                         imgui.CenterColumnText(u8 "Команда")
-                        imgui.SetColumnWidth(-1, 130 * MONET_DPI_SCALE) -- Размеры первого пункта второй вкладки
+                        imgui.SetColumnWidth(-1,
+                                             130 * settings.general.custom_dpi) -- Размеры первого пункта второй вкладки
                         imgui.NextColumn()
                         imgui.CenterColumnText(u8 "Описание")
-                        imgui.SetColumnWidth(-1, 370 * MONET_DPI_SCALE) -- Размеры второго пункта второй вкладки
+                        imgui.SetColumnWidth(-1,
+                                             370 * settings.general.custom_dpi) -- Размеры второго пункта второй вкладки
                         imgui.NextColumn()
                         imgui.CenterColumnText(u8 "Действие")
-                        imgui.SetColumnWidth(-1, 150 * MONET_DPI_SCALE) -- Размеры третьего пункта второй вкладки
+                        imgui.SetColumnWidth(-1,
+                                             150 * settings.general.custom_dpi) -- Размеры третьего пункта второй вкладки
                         imgui.Columns(1)
                         imgui.Separator()
                         imgui.Columns(3)
-                        imgui.CenterColumnText(u8 "/gh")
+                        imgui.CenterColumnText(u8 "/ph")
                         imgui.NextColumn()
                         imgui.CenterColumnText(
                             u8 "Открыть главное меню хелпера")
@@ -5621,16 +5880,22 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                 if imgui.Button(fa.CIRCLE_XMARK ..
                                                     u8 ' Нет, отменить',
                                                 imgui.ImVec2(
-                                                    200 * MONET_DPI_SCALE,
-                                                    25 * MONET_DPI_SCALE)) then
+                                                    200 *
+                                                        settings.general
+                                                            .custom_dpi, 25 *
+                                                        settings.general
+                                                            .custom_dpi)) then
                                     imgui.CloseCurrentPopup()
                                 end
                                 imgui.SameLine()
                                 if imgui.Button(fa.TRASH_CAN ..
                                                     u8 ' Да, удалить',
                                                 imgui.ImVec2(
-                                                    200 * MONET_DPI_SCALE,
-                                                    25 * MONET_DPI_SCALE)) then
+                                                    200 *
+                                                        settings.general
+                                                            .custom_dpi, 25 *
+                                                        settings.general
+                                                            .custom_dpi)) then
                                     sampUnregisterChatCommand(command.cmd)
                                     table.remove(commands.commands, index)
                                     save_commands()
@@ -5677,18 +5942,25 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                         tonumber(settings.player_info.fraction_rank_number) == 9 or
                         tonumber(settings.player_info.fraction_rank_number) ==
                         10 then
-                        if imgui.BeginChild('##1', imgui.ImVec2(
-                                                620 * MONET_DPI_SCALE,
-                                                312 * MONET_DPI_SCALE), true) then -- Размеры вкладки "Команды для 5+"
+                        if imgui.BeginChild('##1',
+                                            imgui.ImVec2(
+                                                620 *
+                                                    settings.general.custom_dpi,
+                                                312 *
+                                                    settings.general.custom_dpi),
+                                            true) then -- Размеры вкладки "Команды для 5+"
                             imgui.Columns(3)
                             imgui.CenterColumnText(u8 "Команда")
-                            imgui.SetColumnWidth(-1, 200 * MONET_DPI_SCALE) -- Размеры первого пункта второй вкладки
+                            imgui.SetColumnWidth(-1, 130 *
+                                                     settings.general.custom_dpi) -- Размеры первого пункта второй вкладки
                             imgui.NextColumn()
                             imgui.CenterColumnText(u8 "Описание")
-                            imgui.SetColumnWidth(-1, 370 * MONET_DPI_SCALE) -- Размеры второго пункта второй вкладки
+                            imgui.SetColumnWidth(-1, 370 *
+                                                     settings.general.custom_dpi) -- Размеры второго пункта второй вкладки
                             imgui.NextColumn()
                             imgui.CenterColumnText(u8 "Действие")
-                            imgui.SetColumnWidth(-1, 150 * MONET_DPI_SCALE) -- Размеры третьего пункта второй вкладки
+                            imgui.SetColumnWidth(-1, 150 *
+                                                     settings.general.custom_dpi) -- Размеры третьего пункта второй вкладки
                             imgui.Columns(1)
                             imgui.Separator()
                             imgui.Columns(3)
@@ -5815,16 +6087,24 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                     if imgui.Button(fa.CIRCLE_XMARK ..
                                                         u8 ' Нет, отменить',
                                                     imgui.ImVec2(
-                                                        200 * MONET_DPI_SCALE,
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        200 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         imgui.CloseCurrentPopup()
                                     end
                                     imgui.SameLine()
                                     if imgui.Button(fa.TRASH_CAN ..
                                                         u8 ' Да, удалить',
                                                     imgui.ImVec2(
-                                                        200 * MONET_DPI_SCALE,
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        200 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         sampUnregisterChatCommand(command.cmd)
                                         table.remove(
                                             commands.commands_senior_staff,
@@ -5885,18 +6165,25 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     if tonumber(settings.player_info.fraction_rank_number) == 9 or
                         tonumber(settings.player_info.fraction_rank_number) ==
                         10 then
-                        if imgui.BeginChild('##1', imgui.ImVec2(
-                                                619 * MONET_DPI_SCALE,
-                                                312 * MONET_DPI_SCALE), true) then -- Размеры окна
+                        if imgui.BeginChild('##1',
+                                            imgui.ImVec2(
+                                                619 *
+                                                    settings.general.custom_dpi,
+                                                312 *
+                                                    settings.general.custom_dpi),
+                                            true) then -- Размеры окна
                             imgui.Columns(3)
                             imgui.CenterColumnText(u8 "Команда")
-                            imgui.SetColumnWidth(-1, 200 * MONET_DPI_SCALE)
+                            imgui.SetColumnWidth(-1, 200 *
+                                                     settings.general.custom_dpi)
                             imgui.NextColumn()
                             imgui.CenterColumnText(u8 "Описание")
-                            imgui.SetColumnWidth(-1, 370 * MONET_DPI_SCALE)
+                            imgui.SetColumnWidth(-1, 370 *
+                                                     settings.general.custom_dpi)
                             imgui.NextColumn()
                             imgui.CenterColumnText(u8 "Действие")
-                            imgui.SetColumnWidth(-1, 150 * MONET_DPI_SCALE)
+                            imgui.SetColumnWidth(-1, 150 *
+                                                     settings.general.custom_dpi)
                             imgui.Columns(1)
                             imgui.Separator()
                             imgui.Columns(3)
@@ -6044,16 +6331,24 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                     if imgui.Button(fa.CIRCLE_XMARK ..
                                                         u8 ' Нет, отменить',
                                                     imgui.ImVec2(
-                                                        200 * MONET_DPI_SCALE,
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        200 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         imgui.CloseCurrentPopup()
                                     end
                                     imgui.SameLine()
                                     if imgui.Button(fa.TRASH_CAN ..
                                                         u8 ' Да, удалить',
                                                     imgui.ImVec2(
-                                                        200 * MONET_DPI_SCALE,
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        200 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         sampUnregisterChatCommand(command.cmd)
                                         table.remove(commands.commands_manage,
                                                      index)
@@ -6109,9 +6404,11 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                 end
                 if imgui.BeginTabItem(fa.BARS ..
                                           u8 ' Дополнительные функции') then
-                    if imgui.BeginChild('##99', imgui.ImVec2(
-                                            619 * MONET_DPI_SCALE,
-                                            342 * MONET_DPI_SCALE), true) then
+                    if imgui.BeginChild('##99',
+                                        imgui.ImVec2(
+                                            619 * settings.general.custom_dpi,
+                                            342 * settings.general.custom_dpi),
+                                        true) then
                         if isMonetLoader() then
                             imgui.CenterText(
                                 u8 'Способ открытия быстрого меню взаимодействия с игроком:')
@@ -6200,14 +6497,16 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                                          imgui.WindowFlags
                                                              .NoResize) then
                                 imgui.SetWindowSizeVec2(imgui.ImVec2(600 *
-                                                                         MONET_DPI_SCALE,
+                                                                         settings.general
+                                                                             .custom_dpi,
                                                                      425 *
-                                                                         MONET_DPI_SCALE))
+                                                                         settings.general
+                                                                             .custom_dpi))
                                 if settings.general.use_binds and
                                     hotkey_no_errors then
                                     imgui.Separator()
                                     imgui.CenterText(
-                                        u8 'Открытие главного меню хелпера (аналог /gh):')
+                                        u8 'Открытие главного меню хелпера (аналог /ph):')
                                     local width = imgui.GetWindowWidth()
                                     local calc = imgui.CalcTextSize(
                                                      getNameKeysFrom(
@@ -6275,7 +6574,9 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                                         u8 ' Закрыть',
                                                     imgui.ImVec2(
                                                         imgui.GetMiddleButtonX(1),
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         imgui.CloseCurrentPopup()
                                     end
                                     imgui.Separator()
@@ -6292,8 +6593,10 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             imgui.EndTabItem()
         end
         if imgui.BeginTabItem(fa.PLAY .. u8 ' Функции') then
-            if imgui.BeginChild('##1', imgui.ImVec2(619 * MONET_DPI_SCALE,
-                                                    195 * MONET_DPI_SCALE), true) then -- Размеры первой вкладки
+            if imgui.BeginChild('##1',
+                                imgui.ImVec2(600 * settings.general.custom_dpi,
+                                             195 * settings.general.custom_dpi),
+                                true) then -- Размеры первой вкладки
                 imgui.CenterText(fa.USER_NURSE ..
                                      u8 ' Настройки работы')
                 imgui.Separator()
@@ -6305,14 +6608,15 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
         end
         if imgui.BeginTabItem(fa.WALLET .. u8 'Обновления') then
             if updateInfo then
-                if imgui.BeginChild('##update', imgui.ImVec2(
-                                        618 * MONET_DPI_SCALE,
-                                        372 * MONET_DPI_SCALE), true) then
+                if imgui.BeginChild('##update',
+                                    imgui.ImVec2(
+                                        618 * settings.general.custom_dpi,
+                                        372 * settings.general.custom_dpi), true) then
                     imgui.CenterText(fa.STAR ..
                                          u8 'История обновлений')
                     imgui.Separator()
 
-                    local indent = string.rep(" ", 115)
+                    local indent = string.rep(" ", 113)
 
                     for i = #updateInfo.news, 1, -1 do
                         local newsItem = updateInfo.news[i]
@@ -6328,16 +6632,17 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                 end
             else
                 -- Если updateInfo = nil или false
-                if imgui.BeginChild('##update', imgui.ImVec2(
-                                        618 * MONET_DPI_SCALE,
-                                        372 * MONET_DPI_SCALE), true) then
+                if imgui.BeginChild('##update',
+                                    imgui.ImVec2(
+                                        618 * settings.general.custom_dpi,
+                                        372 * settings.general.custom_dpi), true) then
                     imgui.CenterText(fa.MONEY_CHECK_DOLLAR ..
                                          u8 ' Обновления')
                     imgui.Separator()
                     imgui.CenterText(
                         u8 'Список обновлений не загружен!')
                     imgui.Spacing()
-                    if imgui.Button(u8 ' Повторить загрузку') then
+                    if imgui.Button(u8 'Повторить загрузку') then
                         check_update()
                     end
                     imgui.EndChild() -- ЗАКРЫВАЕМ Child ЗДЕСЬ!
@@ -6345,16 +6650,517 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             end
             imgui.EndTabItem()
         end
+        if imgui.BeginTabItem(fa.STAR .. u8 'Положение') then
+            if imgui.BeginChild('##smartRPTP',
+                                imgui.ImVec2(600 * settings.general.custom_dpi,
+                                             354 * settings.general.custom_dpi),
+                                true) then -- Размеры окна "Положение"
+                imgui.CenterText(fa.STAR ..
+                                     u8 'Регламент повышения срока заключённым')
+                imgui.Separator()
+                imgui.SetCursorPosY(300 * settings.general.custom_dpi) -- Отступ кнопки "Загрузить" от верхнего края
+                imgui.SetCursorPosX(10 * settings.general.custom_dpi) -- Отступ кнопки "Загрузить" от левого края
+                if imgui.Button(fa.DOWNLOAD ..
+                                    u8 ' Загрузить ##SmartRPTP') then
+                    if getARZServerNumber() ~= 0 then
+                        download_smartRPTP = true
+                        downloadFileFromUrlToPath(
+                            'https://alexwright55.github.io/Prison-Helper/Prison%20Helper/' ..
+                                getARZServerNumber() .. '/SmartRPTP.json',
+                            path_rptp) -- Ссылка на файл с регламентом повышения срока заключённым
+                        imgui.OpenPopup(fa.CIRCLE_INFO ..
+                                            u8 ' Prison Helper - Оповещение##donwloadsmartRPTP')
+                    else
+                        imgui.OpenPopup(fa.CIRCLE_INFO ..
+                                            u8 ' Prison Helper - Оповещение##nocloudsmartRPTP')
+                    end
+                end
+                if imgui.BeginPopupModal(fa.CIRCLE_INFO ..
+                                             u8 ' Prison Helper - Оповещение##nocloudsmartRPTP',
+                                         _, imgui.WindowFlags.NoCollapse +
+                                             imgui.WindowFlags.NoResize) then
+                    imgui.CenterText(
+                        u8 'В базе данных ещё нету регламента повышения срока заключённым для вашего сервера!')
+                    imgui.Separator()
+                    imgui.CenterText(
+                        u8 'Вы можете вручную заполнить его по кнопке "Отредактировать"')
+                    imgui.CenterText(
+                        u8 'Затем вы сможете поделиться им на нашем Discord и он будет загружен в базу данных')
+                    imgui.Separator()
+                    if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Хорошо',
+                                    imgui.ImVec2(
+                                        550 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.EndPopup()
+                end
+                if imgui.BeginPopupModal(fa.CIRCLE_INFO ..
+                                             u8 ' Prison Helper - Оповещение##donwloadsmartRPTP',
+                                         _, imgui.WindowFlags.NoCollapse +
+                                             imgui.WindowFlags.NoResize) then
+                    if download_smartRPTP then
+                        imgui.CenterText(
+                            u8 'Если вы видите это окно значит идёт скачивание регламента повышения срока заключённым для ' ..
+                                getARZServerNumber() .. u8 ' сервера!')
+                        imgui.CenterText(
+                            u8 'После заверешения загрузки это окно пропадёт и вы увидите сообщение в чате!')
+                        imgui.Separator()
+                        imgui.CenterText(
+                            u8 'Если же ничего не происходит, значит произошла ошибка скачивания smartRPTP.json')
+                        imgui.CenterText(
+                            u8 'Возможно в базе данных нету файла именно для вашего сервера!')
+                        imgui.Separator()
+                        imgui.CenterText(
+                            u8 'В этом случае вы можете вручную заполнить его по кнопке "Отредактировать"')
+                        imgui.CenterText(
+                            u8 'Затем вы сможете поделиться им на нашем Discord и он будет загружен в базу данных')
+                        imgui.CenterText(
+                            u8 'Вам надо будет скинуть файл smartRPTP.json , который находиться по пути:')
+                        imgui.CenterText(u8(path_rptp))
+                        imgui.Separator()
+                    else
+                        imgui.CloseCurrentPopup()
+                    end
+                    if imgui.Button(fa.CIRCLE_INFO .. u8 ' Хорошо',
+                                    imgui.ImVec2(
+                                        550 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.EndPopup()
+                end
+                imgui.SetCursorPosY(300 * settings.general.custom_dpi) -- Отступ кнопки "Отредактировать" от верхнего края
+                imgui.SetCursorPosX(450 * settings.general.custom_dpi) -- Отступ кнопки "Отредактировать" от левого края
+                if imgui.Button(fa.PEN_TO_SQUARE ..
+                                    u8 ' Отредактировать ##smartRPTP') then
+                    imgui.OpenPopup(fa.STAR ..
+                                        u8 ' Регламент повышения срока заключённым##smartRPTP')
+                end
+                imgui.SetCursorPosY(250 * settings.general.custom_dpi)
+                imgui.CenterText(u8(
+                                     'Использование: /sum [ID игрока]'))
+                if imgui.BeginPopupModal(fa.STAR ..
+                                             u8 ' Регламент повышения срока заключённым##smartRPTP',
+                                         _, imgui.WindowFlags.NoCollapse +
+                                             imgui.WindowFlags.NoResize) then
+                    imgui.BeginChild('##smartRPTPedit',
+                                     imgui.ImVec2(
+                                         589 * settings.general.custom_dpi,
+                                         360 * settings.general.custom_dpi),
+                                     true)
+                    for chapter_index, chapter in ipairs(smart_rptp) do
+                        imgui.Columns(2)
+                        imgui.BulletText(u8(chapter.name))
+                        imgui.SetColumnWidth(-1,
+                                             515 * settings.general.custom_dpi)
+                        imgui.NextColumn()
+                        if imgui.Button(fa.PEN_TO_SQUARE .. '##' ..
+                                            chapter_index) then
+                            imgui.OpenPopup(
+                                u8(chapter.name) .. '##' .. chapter_index)
+                        end
+                        imgui.SameLine()
+                        if imgui.Button(fa.TRASH_CAN .. '##' .. chapter_index) then
+                            imgui.OpenPopup(
+                                fa.TRIANGLE_EXCLAMATION ..
+                                    u8 ' Prison Helper - Предупреждение ##' ..
+                                    chapter_index)
+                        end
+                        if imgui.BeginPopupModal(
+                            fa.TRIANGLE_EXCLAMATION ..
+                                u8 ' Prison Helper - Предупреждение ##' ..
+                                chapter_index, _, imgui.WindowFlags.NoResize) then
+                            imgui.CenterText(
+                                u8 'Вы действительно хотите удалить пункт?')
+                            imgui.CenterText(u8(chapter.name))
+                            imgui.Separator()
+                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                u8 ' Нет, отменить',
+                                            imgui.ImVec2(
+                                                200 *
+                                                    settings.general.custom_dpi,
+                                                25 * settings.general.custom_dpi)) then
+                                imgui.CloseCurrentPopup()
+                            end
+                            imgui.SameLine()
+                            if imgui.Button(fa.TRASH_CAN ..
+                                                u8 ' Да, удалить',
+                                            imgui.ImVec2(
+                                                200 *
+                                                    settings.general.custom_dpi,
+                                                25 * settings.general.custom_dpi)) then
+                                table.remove(smart_rptp, chapter_index)
+                                save_smart_rptp()
+                                imgui.CloseCurrentPopup()
+                            end
+                            imgui.End()
+                        end
+                        imgui.SetColumnWidth(-1,
+                                             100 * settings.general.custom_dpi)
+                        imgui.Columns(1)
+                        if imgui.BeginPopupModal(
+                            u8(chapter.name) .. '##' .. chapter_index, _,
+                            imgui.WindowFlags.NoCollapse +
+                                imgui.WindowFlags.NoResize) then
+                            if imgui.BeginChild('##smartRPTPedititem',
+                                                imgui.ImVec2(
+                                                    589 *
+                                                        settings.general
+                                                            .custom_dpi, 390 *
+                                                        settings.general
+                                                            .custom_dpi), true) then
+                                if chapter.item then
+                                    for index, item in ipairs(chapter.item) do
+                                        imgui.Columns(2)
+                                        imgui.BulletText(u8(item.text))
+                                        imgui.SetColumnWidth(-1, 515 *
+                                                                 settings.general
+                                                                     .custom_dpi)
+                                        imgui.NextColumn()
+                                        if imgui.Button(
+                                            fa.PEN_TO_SQUARE .. '##' ..
+                                                chapter_index .. '##' .. index) then
+                                            input_smartRPTP_text = imgui.new
+                                                                       .char[256](
+                                                                       u8(
+                                                                           item.text))
+                                            input_smartRPTP_lvl =
+                                                imgui.new.char[256](u8(item.lvl))
+                                            input_smartRPTP_reason = imgui.new
+                                                                         .char[256](
+                                                                         u8(
+                                                                             item.reason))
+                                            imgui.OpenPopup(fa.PEN_TO_SQUARE ..
+                                                                u8(
+                                                                    " Редактирование подпункта##") ..
+                                                                chapter.name ..
+                                                                index ..
+                                                                chapter_index)
+                                        end
+                                        if imgui.BeginPopupModal(
+                                            fa.PEN_TO_SQUARE ..
+                                                u8(
+                                                    " Редактирование подпункта##") ..
+                                                chapter.name .. index ..
+                                                chapter_index, _,
+                                            imgui.WindowFlags.NoCollapse +
+                                                imgui.WindowFlags.NoResize) then
+                                            if imgui.BeginChild(
+                                                '##smartRPTPedititeminput',
+                                                imgui.ImVec2(
+                                                    489 *
+                                                        settings.general
+                                                            .custom_dpi, 155 *
+                                                        settings.general
+                                                            .custom_dpi), true) then
+                                                imgui.CenterText(
+                                                    u8 'Название подпункта:')
+                                                imgui.PushItemWidth(478 *
+                                                                        settings.general
+                                                                            .custom_dpi)
+                                                imgui.InputText(
+                                                    u8 '##input_smartRPTP_text',
+                                                    input_smartRPTP_text, 256)
+                                                imgui.CenterText(
+                                                    u8 'Уровень повышения срока для выдачи (от 1 до 10):')
+                                                imgui.PushItemWidth(478 *
+                                                                        settings.general
+                                                                            .custom_dpi)
+                                                imgui.InputText(
+                                                    u8 '##input_smartRPTP_lvl',
+                                                    input_smartRPTP_lvl, 256)
+                                                imgui.CenterText(
+                                                    u8 'Причина для повышения срока:')
+                                                imgui.PushItemWidth(478 *
+                                                                        settings.general
+                                                                            .custom_dpi)
+                                                imgui.InputText(
+                                                    u8 '##input_smartRPTP_reason',
+                                                    input_smartRPTP_reason, 256)
+                                                imgui.EndChild()
+                                            end
+                                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                                u8 ' Отмена',
+                                                            imgui.ImVec2(
+                                                                imgui.GetMiddleButtonX(
+                                                                    2), 0)) then
+                                                imgui.CloseCurrentPopup()
+                                            end
+                                            imgui.SameLine()
+                                            if imgui.Button(fa.FLOPPY_DISK ..
+                                                                u8 ' Сохранить',
+                                                            imgui.ImVec2(
+                                                                imgui.GetMiddleButtonX(
+                                                                    2), 0)) then
+                                                if u8:decode(ffi.string(
+                                                                 input_smartRPTP_lvl)) ~=
+                                                    '' and
+                                                    not u8:decode(
+                                                        ffi.string(
+                                                            input_smartRPTP_lvl))
+                                                        :find('%D') and
+                                                    tonumber(
+                                                        u8:decode(
+                                                            ffi.string(
+                                                                input_smartRPTP_lvl))) >=
+                                                    1 and
+                                                    tonumber(
+                                                        u8:decode(
+                                                            ffi.string(
+                                                                input_smartRPTP_lvl))) <=
+                                                    10 and
+                                                    u8:decode(
+                                                        ffi.string(
+                                                            input_smartRPTP_text)) ~=
+                                                    '' and
+                                                    u8:decode(
+                                                        ffi.string(
+                                                            input_smartRPTP_reason)) ~=
+                                                    '' then
+                                                    item.text = u8:decode(
+                                                                    ffi.string(
+                                                                        input_smartRPTP_text))
+                                                    item.lvl = u8:decode(
+                                                                   ffi.string(
+                                                                       input_smartRPTP_lvl))
+                                                    item.reason = u8:decode(
+                                                                      ffi.string(
+                                                                          input_smartRPTP_reason))
+                                                    save_smart_rptp()
+                                                    imgui.CloseCurrentPopup()
+                                                else
+                                                    sampAddChatMessage(
+                                                        script_tag ..
+                                                            '  {ffffff}Ошибка в указанных данных, исправьте!',
+                                                        message_color)
+                                                end
+                                            end
+                                            imgui.EndPopup()
+                                        end
+                                        imgui.SameLine()
+                                        if imgui.Button(
+                                            fa.TRASH_CAN .. '##' ..
+                                                chapter_index .. '##' .. index) then
+                                            imgui.OpenPopup(
+                                                fa.TRIANGLE_EXCLAMATION ..
+                                                    u8 ' Prison Helper - Предупреждение ##' ..
+                                                    chapter_index .. '##' ..
+                                                    index)
+                                        end
+                                        if imgui.BeginPopupModal(
+                                            fa.TRIANGLE_EXCLAMATION ..
+                                                u8 ' Prison Helper - Предупреждение ##' ..
+                                                chapter_index .. '##' .. index,
+                                            _, imgui.WindowFlags.NoResize) then
+                                            imgui.CenterText(
+                                                u8 'Вы действительно хотите удалить подпункт?')
+                                            imgui.CenterText(u8(item.text))
+                                            imgui.Separator()
+                                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                                u8 ' Нет, отменить',
+                                                            imgui.ImVec2(
+                                                                200 *
+                                                                    settings.general
+                                                                        .custom_dpi,
+                                                                25 *
+                                                                    settings.general
+                                                                        .custom_dpi)) then
+                                                imgui.CloseCurrentPopup()
+                                            end
+                                            imgui.SameLine()
+                                            if imgui.Button(fa.TRASH_CAN ..
+                                                                u8 ' Да, удалить',
+                                                            imgui.ImVec2(
+                                                                200 *
+                                                                    settings.general
+                                                                        .custom_dpi,
+                                                                25 *
+                                                                    settings.general
+                                                                        .custom_dpi)) then
+                                                table.remove(chapter.item, index)
+                                                save_smart_rptp()
+                                                imgui.CloseCurrentPopup()
+                                            end
+                                            imgui.End()
+                                        end
+                                        imgui.SetColumnWidth(-1, 100 *
+                                                                 settings.general
+                                                                     .custom_dpi)
+                                        imgui.Columns(1)
+                                        imgui.Separator()
+                                    end
+                                end
+                                imgui.EndChild()
+                            end
+                            if imgui.Button(fa.CIRCLE_PLUS ..
+                                                u8 ' Добавить новый подпункт',
+                                            imgui.ImVec2(
+                                                imgui.GetMiddleButtonX(2), 25 *
+                                                    settings.general.custom_dpi)) then
+                                input_smartRPTP_text =
+                                    imgui.new.char[256](u8(''))
+                                input_smartRPTP_lvl =
+                                    imgui.new.char[256](u8(''))
+                                input_smartRPTP_reason =
+                                    imgui.new.char[256](u8(''))
+                                imgui.OpenPopup(fa.CIRCLE_PLUS ..
+                                                    u8(
+                                                        ' Добавление нового подпункта'))
+                            end
+                            if imgui.BeginPopupModal(fa.CIRCLE_PLUS ..
+                                                         u8(
+                                                             ' Добавление нового подпункта'),
+                                                     _, imgui.WindowFlags
+                                                         .NoCollapse +
+                                                         imgui.WindowFlags
+                                                             .NoResize) then
+                                if imgui.BeginChild('##smartRPTPedititeminput',
+                                                    imgui.ImVec2(
+                                                        489 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        155 *
+                                                            settings.general
+                                                                .custom_dpi),
+                                                    true) then
+                                    imgui.CenterText(
+                                        u8 'Название подпункта:')
+                                    imgui.PushItemWidth(478 *
+                                                            settings.general
+                                                                .custom_dpi)
+                                    imgui.InputText(u8 '##input_smartRPTP_text',
+                                                    input_smartRPTP_text, 256)
+                                    imgui.CenterText(
+                                        u8 'Уровень розыска для выдачи (от 1 до 6):')
+                                    imgui.PushItemWidth(478 *
+                                                            settings.general
+                                                                .custom_dpi)
+                                    imgui.InputText(u8 '##input_smartRPTP_lvl',
+                                                    input_smartRPTP_lvl, 256)
+                                    imgui.CenterText(
+                                        u8 'Причина для выдачи розыска:')
+                                    imgui.PushItemWidth(478 *
+                                                            settings.general
+                                                                .custom_dpi)
+                                    imgui.InputText(
+                                        u8 '##input_smartRPTP_reason',
+                                        input_smartRPTP_reason, 256)
+                                    imgui.EndChild()
+                                end
+                                if imgui.Button(fa.CIRCLE_XMARK ..
+                                                    u8 ' Отмена',
+                                                imgui.ImVec2(
+                                                    imgui.GetMiddleButtonX(2), 0)) then
+                                    imgui.CloseCurrentPopup()
+                                end
+                                imgui.SameLine()
+                                if imgui.Button(fa.FLOPPY_DISK ..
+                                                    u8 ' Сохранить',
+                                                imgui.ImVec2(
+                                                    imgui.GetMiddleButtonX(2), 0)) then
+                                    local text =
+                                        u8:decode(ffi.string(
+                                                      input_smartRPTP_text))
+                                    local lvl =
+                                        u8:decode(ffi.string(input_smartRPTP_lvl))
+                                    local reason =
+                                        u8:decode(ffi.string(
+                                                      input_smartRPTP_reason))
+                                    if lvl ~= '' and
+                                        not tostring(lvl):find('%D') and
+                                        tonumber(lvl) >= 1 and tonumber(lvl) <=
+                                        6 and text ~= '' and reason ~= '' then
+                                        local temp = {
+                                            text = text,
+                                            lvl = lvl,
+                                            reason = reason
+                                        }
+                                        table.insert(chapter.item, temp)
+                                        save_smart_rptp()
+                                        imgui.CloseCurrentPopup()
+                                    else
+                                        sampAddChatMessage(script_tag ..
+                                                               '  {ffffff}Ошибка в указанных данных, исправьте!',
+                                                           message_color)
+                                    end
+                                end
+                                imgui.EndPopup()
+                            end
+                            imgui.SameLine()
+                            if imgui.Button(fa.CIRCLE_XMARK ..
+                                                u8 ' Закрыть',
+                                            imgui.ImVec2(
+                                                imgui.GetMiddleButtonX(2), 25 *
+                                                    settings.general.custom_dpi)) then
+                                imgui.CloseCurrentPopup()
+                            end
+                            imgui.EndPopup()
+                        end
+                        imgui.Separator()
+                    end
+                    imgui.EndChild()
+                    if imgui.Button(fa.CIRCLE_XMARK ..
+                                        u8 ' Добавить пункт',
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                        input_smartRPTP_name = imgui.new.char[256](u8(''))
+                        imgui.OpenPopup(fa.CIRCLE_PLUS ..
+                                            u8 ' Добавление нового пункта')
+                    end
+                    if imgui.BeginPopupModal(fa.CIRCLE_PLUS ..
+                                                 u8 ' Добавление нового пункта',
+                                             _, imgui.WindowFlags.NoCollapse +
+                                                 imgui.WindowFlags.NoResize) then
+                        imgui.CenterText(u8(
+                                             'Введите название/номер пункта и нажмите "Сохранить"'))
+                        imgui.PushItemWidth(500 * settings.general.custom_dpi)
+                        imgui.InputText(u8 '##input_smartRPTP_name',
+                                        input_smartRPTP_name, 256)
+                        imgui.CenterText(
+                            u8 'Обратите внимание, вы не сможете изменить его в дальнейшем!')
+                        if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
+                                        imgui.ImVec2(imgui.GetMiddleButtonX(2),
+                                                     0)) then
+                            imgui.CloseCurrentPopup()
+                        end
+                        imgui.SameLine()
+                        if imgui.Button(
+                            fa.CIRCLE_PLUS .. u8 ' Добавить',
+                            imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                            local temp =
+                                u8:decode(ffi.string(input_smartRPTP_name))
+                            local new_chapter = {name = temp, item = {}}
+                            table.insert(smart_rptp, new_chapter)
+                            save_smart_rptp()
+                            imgui.CloseCurrentPopup()
+                        end
+                        imgui.EndPopup()
+                    end
+                    imgui.SameLine()
+                    if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 0)) then
+                        imgui.CloseCurrentPopup()
+                    end
+                    imgui.EndPopup()
+                end
+                imgui.EndChild()
+            end
+            imgui.CenterText(
+                u8 'Предложения по изменению регламента повышения срока отправляйте в Discord.')
+            imgui.EndTabItem()
+        end
         if imgui.BeginTabItem(fa.FILE_PEN .. u8 ' Заметки') then
-            imgui.BeginChild('##1', imgui.ImVec2(620 * MONET_DPI_SCALE,
-                                                 340 * MONET_DPI_SCALE), true) -- Размеры вкладки "Заметки" (Y - 340px; X-620px)
+            imgui.BeginChild('##1',
+                             imgui.ImVec2(620 * settings.general.custom_dpi,
+                                          340 * settings.general.custom_dpi),
+                             true) -- Размеры вкладки "Заметки" (Y - 340px; X-620px)
             imgui.Columns(2)
             imgui.CenterColumnText(
                 u8 "Список всех ваших заметок/шпаргалок:")
-            imgui.SetColumnWidth(-1, 530 * MONET_DPI_SCALE)
+            imgui.SetColumnWidth(-1, 530 * settings.general.custom_dpi)
             imgui.NextColumn()
             imgui.CenterColumnText(u8 "Действие")
-            imgui.SetColumnWidth(-1, 140 * MONET_DPI_SCALE)
+            imgui.SetColumnWidth(-1, 140 * settings.general.custom_dpi)
             imgui.Columns(1)
             imgui.Separator()
             for i, note in ipairs(notes.note) do
@@ -6388,15 +7194,21 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     fa.PEN_TO_SQUARE .. u8 ' Изменение заметки' ..
                         '##' .. i, _,
                     imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize) then
-                    if imgui.BeginChild('##9992', imgui.ImVec2(
-                                            589 * MONET_DPI_SCALE,
-                                            360 * MONET_DPI_SCALE), true) then
-                        imgui.PushItemWidth(578 * MONET_DPI_SCALE)
+                    if imgui.BeginChild('##9992',
+                                        imgui.ImVec2(
+                                            589 * settings.general.custom_dpi,
+                                            360 * settings.general.custom_dpi),
+                                        true) then
+                        imgui.PushItemWidth(578 * settings.general.custom_dpi)
                         imgui.InputText(u8 '##note_name', input_name_note, 256)
                         imgui.InputTextMultiline("##note_text", input_text_note,
-                                                 16384, imgui.ImVec2(
-                                                     578 * MONET_DPI_SCALE,
-                                                     320 * MONET_DPI_SCALE))
+                                                 16384,
+                                                 imgui.ImVec2(
+                                                     578 *
+                                                         settings.general
+                                                             .custom_dpi, 320 *
+                                                         settings.general
+                                                             .custom_dpi))
                         imgui.EndChild()
                     end
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
@@ -6435,14 +7247,16 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     imgui.Separator()
                     if imgui.Button(fa.CIRCLE_XMARK ..
                                         u8 ' Нет, отменить',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         imgui.CloseCurrentPopup()
                     end
                     imgui.SameLine()
                     if imgui.Button(fa.TRASH_CAN .. u8 ' Да, удалить',
-                                    imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(
+                                        200 * settings.general.custom_dpi,
+                                        25 * settings.general.custom_dpi)) then
                         table.remove(notes.note, i)
                         save_notes()
                         imgui.CloseCurrentPopup()
@@ -6465,15 +7279,19 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                                          u8 ' Создание заметки',
                                      _, imgui.WindowFlags.NoCollapse +
                                          imgui.WindowFlags.NoResize) then
-                if imgui.BeginChild('##999999', imgui.ImVec2(
-                                        589 * MONET_DPI_SCALE,
-                                        360 * MONET_DPI_SCALE), true) then
-                    imgui.PushItemWidth(578 * MONET_DPI_SCALE)
+                if imgui.BeginChild('##999999',
+                                    imgui.ImVec2(
+                                        589 * settings.general.custom_dpi,
+                                        360 * settings.general.custom_dpi), true) then
+                    imgui.PushItemWidth(578 * settings.general.custom_dpi)
                     imgui.InputText(u8 '##note_name', input_name_note, 256)
                     imgui.InputTextMultiline("##note_text", input_text_note,
-                                             16384, imgui.ImVec2(
-                                                 578 * MONET_DPI_SCALE,
-                                                 320 * MONET_DPI_SCALE))
+                                             16384,
+                                             imgui.ImVec2(
+                                                 578 *
+                                                     settings.general.custom_dpi,
+                                                 320 *
+                                                     settings.general.custom_dpi))
                     imgui.EndChild()
                 end
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
@@ -6498,8 +7316,10 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             imgui.EndTabItem()
         end
         if imgui.BeginTabItem(fa.GEAR .. u8 ' Настройки') then
-            imgui.BeginChild('##1', imgui.ImVec2(620 * MONET_DPI_SCALE,
-                                                 180 * MONET_DPI_SCALE), true) -- Размеры вкладки "Настройки"
+            imgui.BeginChild('##1',
+                             imgui.ImVec2(620 * settings.general.custom_dpi,
+                                          180 * settings.general.custom_dpi),
+                             true) -- Размеры вкладки "Настройки"
             imgui.CenterText(fa.CIRCLE_INFO ..
                                  u8 ' Дополнительная информация про хелпер')
             imgui.Separator()
@@ -6561,7 +7381,7 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     u8 'Реквизиты указаны на нашем Discord сервере тех.поддержки')
                 imgui.CenterText(
                     u8 'Если же вы не можете зайти туда, то свяжитесь с MTG MODS:')
-                imgui.SetCursorPosX(130 * MONET_DPI_SCALE)
+                imgui.SetCursorPosX(130 * settings.general.custom_dpi)
                 if imgui.Button(u8('Telegram')) then
                     openLink('https://t.me/mtg_mods')
                 end
@@ -6575,15 +7395,17 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                 end
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
-                                imgui.ImVec2(400 * MONET_DPI_SCALE,
-                                             25 * MONET_DPI_SCALE)) then
+                                imgui.ImVec2(400 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.End()
             end
             imgui.EndChild()
-            imgui.BeginChild('##3', imgui.ImVec2(619 * MONET_DPI_SCALE,
-                                                 87 * MONET_DPI_SCALE), true)
+            imgui.BeginChild('##3',
+                             imgui.ImVec2(619 * settings.general.custom_dpi,
+                                          87 * settings.general.custom_dpi),
+                             true)
             imgui.CenterText(fa.PALETTE ..
                                  u8 ' Цветовая тема хелпера:')
             imgui.Separator()
@@ -6633,8 +7455,10 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                     theme, 1) then theme[0] = 0 end
             end
             imgui.EndChild()
-            imgui.BeginChild("##2", imgui.ImVec2(619 * MONET_DPI_SCALE,
-                                                 55 * MONET_DPI_SCALE), true)
+            imgui.BeginChild("##2",
+                             imgui.ImVec2(619 * settings.general.custom_dpi,
+                                          55 * settings.general.custom_dpi),
+                             true)
             -- imgui.TextWrapped(u8('Нашли баг или есть предложение по улучшению хелпера? Сообщите об этом на нашем Discord сервере или на форуме BlastHack!'))
             -- imgui.TextWrapped(u8('Есть желание  Вы можете закинуть донатик! Реквизиты есть на нашем Discord сервере.'))
             imgui.CenterText(
@@ -6643,11 +7467,13 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             imgui.CenterText(
                 u8 'Сообщите об этом на нашем Discord сервере или на форуме BlastHack!')
             imgui.EndChild()
-            imgui.BeginChild("##4", imgui.ImVec2(619 * MONET_DPI_SCALE,
-                                                 35 * MONET_DPI_SCALE), true)
+            imgui.BeginChild("##4",
+                             imgui.ImVec2(619 * settings.general.custom_dpi,
+                                          35 * settings.general.custom_dpi),
+                             true)
             if imgui.Button(fa.POWER_OFF .. u8 " Выключение ",
                             imgui.ImVec2(imgui.GetMiddleButtonX(4),
-                                         25 * MONET_DPI_SCALE)) then
+                                         25 * settings.general.custom_dpi)) then
                 imgui.OpenPopup(fa.TRIANGLE_EXCLAMATION ..
                                     u8 ' Предупреждение ##off')
             end
@@ -6660,14 +7486,14 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK ..
                                     u8 ' Нет, отменить',
-                                imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                             25 * MONET_DPI_SCALE)) then
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.SameLine()
                 if imgui.Button(fa.POWER_OFF .. u8 ' Да, выгрузить',
-                                imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                             25 * MONET_DPI_SCALE)) then
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
                     reload_script = true
                     play_error_sound()
                     sampAddChatMessage(script_tag ..
@@ -6689,7 +7515,7 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             imgui.SameLine()
             if imgui.Button(fa.ROTATE_RIGHT .. u8 " Перезагрузка ",
                             imgui.ImVec2(imgui.GetMiddleButtonX(4),
-                                         25 * MONET_DPI_SCALE)) then
+                                         25 * settings.general.custom_dpi)) then
                 reload_script = true
                 thisScript():reload()
             end
@@ -6697,7 +7523,7 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             if imgui.Button(fa.CLOCK_ROTATE_LEFT ..
                                 u8 " Сброс настроек ",
                             imgui.ImVec2(imgui.GetMiddleButtonX(4),
-                                         25 * MONET_DPI_SCALE)) then
+                                         25 * settings.general.custom_dpi)) then
                 imgui.OpenPopup(fa.TRIANGLE_EXCLAMATION ..
                                     u8 ' Предупреждение ##reset')
             end
@@ -6709,14 +7535,15 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK ..
                                     u8 ' Нет, отменить',
-                                imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                             25 * MONET_DPI_SCALE)) then
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.SameLine()
                 if imgui.Button(fa.CLOCK_ROTATE_LEFT ..
-                                    u8 ' Да, сбросить', imgui.ImVec2(
-                                    200 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+                                    u8 ' Да, сбросить',
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
                     play_error_sound()
                     deleteHelperData()
                     imgui.CloseCurrentPopup()
@@ -6728,7 +7555,7 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
             imgui.SameLine()
             if imgui.Button(fa.TRASH_CAN .. u8 " Удаление ",
                             imgui.ImVec2(imgui.GetMiddleButtonX(4),
-                                         25 * MONET_DPI_SCALE)) then
+                                         25 * settings.general.custom_dpi)) then
                 imgui.OpenPopup(fa.TRIANGLE_EXCLAMATION ..
                                     u8 ' Предупреждение ##delete')
             end
@@ -6740,17 +7567,16 @@ imgui.OnFrame(function() return MainWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK ..
                                     u8 ' Нет, отменить',
-                                imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                             25 * MONET_DPI_SCALE)) then
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.SameLine()
                 if imgui.Button(fa.TRASH_CAN ..
                                     u8 ' Да, я хочу удалить',
-                                imgui.ImVec2(200 * MONET_DPI_SCALE,
-                                             25 * MONET_DPI_SCALE)) then
-                    sampShowDialog(999999,
-                                   message_color_hex .. "Prison Helper",
+                                imgui.ImVec2(200 * settings.general.custom_dpi,
+                                             25 * settings.general.custom_dpi)) then
+                    sampShowDialog(999999, message_color_hex .. "Prison Helper",
                                    "Мне очень жаль что вы удалили Prison Helper из своего устройства.\nЕсли удаление связано с негативным опытом использования, и вы сталкивались с багами или проблемами, то\nсообщите мне что именно заставило вас удалить хелпер на нашем Discord сервере или на форуме BlastHack\n\nDiscord: https://discord.com/invite/qBPEYjfNhv\nBlastHack: https://www.blast.hk/threads/195388/\n\nЕсли что, вы можете заново скачать и установить хелпер в любой момент :)",
                                    "Закрыть", '', 0)
                     reload_script = true
@@ -6944,11 +7770,12 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 DeportamentWindow,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                     imgui.WindowFlags.AlwaysAutoResize)
-    imgui.BeginChild('##2', imgui.ImVec2(589 * MONET_DPI_SCALE,
-                                         160 * MONET_DPI_SCALE), true)
+    imgui.BeginChild('##2', imgui.ImVec2(589 * settings.general.custom_dpi,
+                                         160 * settings.general.custom_dpi),
+                     true)
     imgui.Columns(3)
     imgui.CenterColumnText(u8('Ваш тег:'))
-    imgui.PushItemWidth(215 * MONET_DPI_SCALE)
+    imgui.PushItemWidth(215 * settings.general.custom_dpi)
     if imgui.InputText('##input_dep_tag1', input_dep_tag1, 256) then
         settings.deportament.dep_tag1 = u8:decode(ffi.string(input_dep_tag1))
         save_settings()
@@ -6985,7 +7812,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(1),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndTabItem()
@@ -7015,7 +7842,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(1),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndTabItem()
@@ -7045,7 +7872,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_PLUS .. u8 ' Добавить тег',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.OpenPopup(fa.TAG ..
                                         u8 ' Добавление нового тега##1')
                 end
@@ -7053,19 +7880,19 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                                              u8 ' Добавление нового тега##1',
                                          _, imgui.WindowFlags.NoCollapse +
                                              imgui.WindowFlags.NoResize) then
-                    imgui.PushItemWidth(215 * MONET_DPI_SCALE)
+                    imgui.PushItemWidth(215 * settings.general.custom_dpi)
                     imgui.InputText('##input_dep_new_tag', input_dep_new_tag,
                                     256)
                     imgui.Separator()
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
-                                    imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 *
+                                                     settings.general.custom_dpi)) then
                         imgui.CloseCurrentPopup()
                     end
                     imgui.SameLine()
                     if imgui.Button(fa.FLOPPY_DISK .. u8 ' Сохранить',
-                                    imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 *
+                                                     settings.general.custom_dpi)) then
                         table.insert(settings.deportament.dep_tags_custom,
                                      u8:decode(ffi.string(input_dep_new_tag)))
                         save_settings()
@@ -7076,7 +7903,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.SameLine()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndTabItem()
@@ -7085,10 +7912,10 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
         end
         imgui.End()
     end
-    imgui.SetColumnWidth(-1, 230 * MONET_DPI_SCALE)
+    imgui.SetColumnWidth(-1, 230 * settings.general.custom_dpi)
     imgui.NextColumn()
     imgui.CenterColumnText(u8('Частота рации:'))
-    imgui.PushItemWidth(140 * MONET_DPI_SCALE)
+    imgui.PushItemWidth(140 * settings.general.custom_dpi)
     if imgui.InputText('##input_dep_fm', input_dep_fm, 256) then
         settings.deportament.dep_fm = u8:decode(ffi.string(input_dep_fm))
         save_settings()
@@ -7112,16 +7939,17 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
         end
         imgui.Separator()
         if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть', imgui.ImVec2(
-                            imgui.GetMiddleButtonX(1), 25 * MONET_DPI_SCALE)) then
+                            imgui.GetMiddleButtonX(1),
+                            25 * settings.general.custom_dpi)) then
             imgui.CloseCurrentPopup()
         end
         imgui.End()
     end
-    imgui.SetColumnWidth(-1, 150 * MONET_DPI_SCALE)
+    imgui.SetColumnWidth(-1, 150 * settings.general.custom_dpi)
     imgui.NextColumn()
     imgui.CenterColumnText(
         u8('Тег, к кому вы обращаетесь:'))
-    imgui.PushItemWidth(195 * MONET_DPI_SCALE)
+    imgui.PushItemWidth(195 * settings.general.custom_dpi)
     if imgui.InputText('##input_dep_tag2', input_dep_tag2, 256) then
         settings.deportament.dep_tag2 = u8:decode(ffi.string(input_dep_tag2))
         save_settings()
@@ -7158,7 +7986,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(1),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndTabItem()
@@ -7188,7 +8016,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(1),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndTabItem()
@@ -7218,7 +8046,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.Separator()
                 if imgui.Button(fa.CIRCLE_PLUS .. u8 ' Добавить тег',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.OpenPopup(fa.TAG ..
                                         u8 ' Добавление нового тега##2')
                 end
@@ -7226,19 +8054,19 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                                              u8 ' Добавление нового тега##2',
                                          _, imgui.WindowFlags.NoCollapse +
                                              imgui.WindowFlags.NoResize) then
-                    imgui.PushItemWidth(215 * MONET_DPI_SCALE)
+                    imgui.PushItemWidth(215 * settings.general.custom_dpi)
                     imgui.InputText('##input_dep_new_tag', input_dep_new_tag,
                                     256)
                     imgui.Separator()
                     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
-                                    imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 *
+                                                     settings.general.custom_dpi)) then
                         imgui.CloseCurrentPopup()
                     end
                     imgui.SameLine()
                     if imgui.Button(fa.FLOPPY_DISK .. u8 ' Сохранить',
-                                    imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                                 25 * MONET_DPI_SCALE)) then
+                                    imgui.ImVec2(imgui.GetMiddleButtonX(2), 25 *
+                                                     settings.general.custom_dpi)) then
                         table.insert(settings.deportament.dep_tags_custom,
                                      u8:decode(ffi.string(input_dep_new_tag)))
                         save_settings()
@@ -7249,7 +8077,7 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
                 imgui.SameLine()
                 if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
                                 imgui.ImVec2(imgui.GetMiddleButtonX(2),
-                                             25 * MONET_DPI_SCALE)) then
+                                             25 * settings.general.custom_dpi)) then
                     imgui.CloseCurrentPopup()
                 end
                 imgui.EndTabItem()
@@ -7258,11 +8086,11 @@ imgui.OnFrame(function() return DeportamentWindow[0] end, function(player)
         end
         imgui.End()
     end
-    imgui.SetColumnWidth(-1, 235 * MONET_DPI_SCALE)
+    imgui.SetColumnWidth(-1, 235 * settings.general.custom_dpi)
     imgui.Columns(1)
     imgui.Separator()
     imgui.CenterText(u8('Текст:'))
-    imgui.PushItemWidth(490 * MONET_DPI_SCALE)
+    imgui.PushItemWidth(490 * settings.general.custom_dpi)
     imgui.InputText(u8 '##dep_input_text', input_dep_text, 256)
     imgui.SameLine()
     if imgui.Button(u8 ' Отправить ') then
@@ -7284,23 +8112,23 @@ end)
 imgui.OnFrame(function() return BinderWindow[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(600 * MONET_DPI_SCALE,
-                                         425 * MONET_DPI_SCALE),
+    imgui.SetNextWindowSize(imgui.ImVec2(600 * settings.general.custom_dpi,
+                                         425 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(fa.PEN_TO_SQUARE ..
                     u8 ' Редактирование команды /' ..
                     change_cmd, BinderWindow,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
-    if imgui.BeginChild('##binder_edit', imgui.ImVec2(589 * MONET_DPI_SCALE,
-                                                      361 * MONET_DPI_SCALE),
-                        true) then
+    if imgui.BeginChild('##binder_edit',
+                        imgui.ImVec2(589 * settings.general.custom_dpi,
+                                     361 * settings.general.custom_dpi), true) then
         imgui.CenterText(fa.FILE_LINES .. u8 ' Описание команды:')
-        imgui.PushItemWidth(579 * MONET_DPI_SCALE)
+        imgui.PushItemWidth(579 * settings.general.custom_dpi)
         imgui.InputText("##input_description", input_description, 256)
         imgui.Separator()
         imgui.CenterText(fa.TERMINAL ..
                              u8 ' Команда для использования в чате (без /):')
-        imgui.PushItemWidth(579 * MONET_DPI_SCALE)
+        imgui.PushItemWidth(579 * settings.general.custom_dpi)
         imgui.InputText("##input_cmd", input_cmd, 256)
         imgui.Separator()
         imgui.CenterText(fa.CODE ..
@@ -7310,8 +8138,8 @@ imgui.OnFrame(function() return BinderWindow[0] end, function(player)
         imgui.CenterText(fa.FILE_WORD ..
                              u8 ' Текстовый бинд команды:')
         imgui.InputTextMultiline("##text_multiple", input_text, 8192,
-                                 imgui.ImVec2(579 * MONET_DPI_SCALE,
-                                              173 * MONET_DPI_SCALE))
+                                 imgui.ImVec2(579 * settings.general.custom_dpi,
+                                              173 * settings.general.custom_dpi))
         imgui.EndChild()
     end
     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Отмена',
@@ -7327,7 +8155,7 @@ imgui.OnFrame(function() return BinderWindow[0] end, function(player)
     if imgui.BeginPopupModal(fa.CLOCK ..
                                  u8 ' Задержка (в секундах) ',
                              _, imgui.WindowFlags.NoResize) then
-        imgui.PushItemWidth(200 * MONET_DPI_SCALE)
+        imgui.PushItemWidth(200 * settings.general.custom_dpi)
 
         -- Создание буфера для текстового ввода
         local buffer = imgui.new.char(64)
@@ -7527,8 +8355,9 @@ imgui.OnFrame(function() return BinderWindow[0] end, function(player)
                 u8 " Бинд команды не может быть пустой!")
         end
         imgui.Separator()
-        if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть', imgui.ImVec2(
-                            300 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+        if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть',
+                        imgui.ImVec2(300 * settings.general.custom_dpi,
+                                     25 * settings.general.custom_dpi)) then
             imgui.CloseCurrentPopup()
         end
         imgui.End()
@@ -7536,57 +8365,89 @@ imgui.OnFrame(function() return BinderWindow[0] end, function(player)
     imgui.End()
 end)
 
-imgui.OnFrame(function() return MembersWindow[0] end, function(player)
+imgui.OnFrame(function() return MODULE.Members.Window[0] end, function(player)
+    print('test 1')
+    if #MODULE.Members.all == 0 then
+        sampAddChatMessage(
+            '[Arizona Helper] {ffffff}Ошибка, список сотрудников пустой!',
+            message_color)
+        MODULE.Members.Window[0] = false
+    elseif #MODULE.Members.all >= 16 then
+        sizeYY = 413 + 21
+    else
+        sizeYY = 24.5 * (#MODULE.Members.all + 1) + 21
+    end
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-
-    if tonumber(#members) >= 16 then
-        sizeYY = 413
-    else
-        sizeYY = 24.5 * (tonumber(#members) + 1)
-    end
-    imgui.SetNextWindowSize(imgui.ImVec2(600 * MONET_DPI_SCALE,
-                                         sizeYY * MONET_DPI_SCALE),
+    imgui.SetNextWindowSize(imgui.ImVec2(730 * settings.general.custom_dpi,
+                                         sizeYY * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
-
-    imgui.Begin(fa.BUILDING_SHIELD .. " " .. u8(members_fraction) .. " - " ..
-                    #members .. u8 ' сотрудников онлайн',
-                MembersWindow,
+    imgui.Begin(getHelperIcon() .. " " .. u8(MODULE.Members.info.fraction) ..
+                    " - " .. #MODULE.Members.all ..
+                    u8 ' сотрудников онлайн ' ..
+                    getHelperIcon(), MODULE.Members.Window,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize)
-    for i, v in ipairs(members) do
-        imgui.Columns(3)
+    change_dpi()
+    imgui.Columns(4)
+    imgui.CenterColumnText(getUserIcon() .. u8(" Cотрудник"))
+    imgui.SetColumnWidth(-1, 300 * settings.general.custom_dpi)
+    imgui.NextColumn()
+    imgui.CenterColumnText(fa.RANKING_STAR .. u8(" Должность"))
+    imgui.SetColumnWidth(-1, 230 * settings.general.custom_dpi)
+    imgui.NextColumn()
+    imgui.CenterColumnText(fa.TRIANGLE_EXCLAMATION .. u8(" Выговоры"))
+    imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi)
+    imgui.NextColumn()
+    imgui.CenterColumnText(fa.INFO .. u8(" Инфо"))
+    imgui.SetColumnWidth(-1, 100 * settings.general.custom_dpi)
+    imgui.Columns(1)
+    for i, v in ipairs(MODULE.Members.all) do
+        imgui.Separator()
+        imgui.Columns(4)
         if v.working then
-            imgui_RGBA = imgui.ImVec4(1, 1, 1, 1) -- white
+            imgui_RGBA = (settings.general.helper_theme ~= 2) and
+                             imgui.ImVec4(1, 1, 1, 1) or
+                             imgui.ImVec4(0, 0, 0, 1)
         else
-            imgui_RGBA = imgui.ImVec4(1, 0.231, 0.231, 1) -- red
+            imgui_RGBA = imgui.ImVec4(1, 0.231, 0.231, 1)
         end
-        if tonumber(v.afk) > 0 and tonumber(v.afk) < 60 then
-            imgui.CenterColumnColorText(imgui_RGBA,
-                                        u8(v.nick) .. ' [' .. v.id .. '] [AFK ' ..
-                                            v.afk .. 's]')
-        elseif tonumber(v.afk) >= 60 then
-            imgui.CenterColumnColorText(imgui_RGBA,
-                                        u8(v.nick) .. ' [' .. v.id .. '] [AFK ' ..
-                                            math.floor(tonumber(v.afk) / 60) ..
-                                            'm]')
-        else
-            imgui.CenterColumnColorText(imgui_RGBA,
-                                        u8(v.nick) .. ' [' .. v.id .. ']')
+        local text = u8(v.nick) .. ' [' .. v.id .. ']'
+        if tonumber(v.afk) then
+            local afk = tonumber(v.afk)
+            if afk > 0 then
+                if afk < 60 then
+                    text = text .. ' [AFK ' .. afk .. 's]'
+                else
+                    text = text .. ' [AFK ' .. math.floor(afk / 60) .. 'm]'
+                end
+            end
         end
-        if imgui.IsItemClicked() and
-            tonumber(settings.player_info.fraction_rank_number) >= 9 then
+        imgui.CenterColumnColorText(imgui_RGBA, text)
+        if (imgui.IsItemClicked() and settings.player_info.fraction_rank_number >=
+            9) then
             show_leader_fast_menu(v.id)
-            MembersWindow[0] = false
+            MODULE.Members.Window[0] = false
         end
-        imgui.SetColumnWidth(-1, 300 * MONET_DPI_SCALE)
         imgui.NextColumn()
         imgui.CenterColumnText(u8(v.rank) .. ' (' .. u8(v.rank_number) .. ')')
-        imgui.SetColumnWidth(-1, 230 * MONET_DPI_SCALE)
         imgui.NextColumn()
-        imgui.CenterColumnText(u8(v.warns .. '/3'))
-        imgui.SetColumnWidth(-1, 75 * MONET_DPI_SCALE)
+        if tonumber(v.warns) == 0 then
+            imgui.CenterColumnText(u8(v.warns .. '/3'))
+        elseif tonumber(v.warns) == 1 then
+            imgui.CenterColumnColorText(imgui.ImVec4(1, 1, 0.231, 1),
+                                        u8(v.warns .. '/3'))
+        else
+            imgui.CenterColumnColorText(imgui.ImVec4(1, 0.231, 0.231, 1),
+                                        u8(v.warns .. '/3'))
+        end
+        imgui.NextColumn()
+        if v.info == '-' then
+            imgui.CenterColumnText(u8(v.info))
+        else
+            imgui.CenterColumnColorText(imgui.ImVec4(1, 0.231, 0.231, 1),
+                                        u8(v.info))
+        end
         imgui.Columns(1)
-        imgui.Separator()
     end
     imgui.End()
 end)
@@ -7599,7 +8460,8 @@ imgui.OnFrame(function() return NoteWindow[0] end, function(player)
     imgui.Text(show_note_text:gsub('&', '\n'))
     imgui.Separator()
     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Закрыть', imgui.ImVec2(
-                        imgui.GetMiddleButtonX(1), 25 * MONET_DPI_SCALE)) then
+                        imgui.GetMiddleButtonX(1),
+                        25 * settings.general.custom_dpi)) then
         NoteWindow[0] = false
     end
     imgui.End()
@@ -7625,8 +8487,9 @@ imgui.OnFrame(function() return FastMenu[0] end, function(player)
     for _, command in ipairs(allCommands) do
         if command.enable and command.arg == '{arg_id}' and
             not command.text:find('/cure') and not command.text:find('/unstuff') then
-            if imgui.Button(u8(command.description), imgui.ImVec2(
-                                290 * MONET_DPI_SCALE, 30 * MONET_DPI_SCALE)) then
+            if imgui.Button(u8(command.description),
+                            imgui.ImVec2(290 * settings.general.custom_dpi,
+                                         30 * settings.general.custom_dpi)) then
                 sampProcessChatInput("/" .. command.cmd .. " " .. player_id)
                 FastMenu[0] = false
             end
@@ -7644,22 +8507,25 @@ imgui.OnFrame(function() return LeaderFastMenu[0] end, function(player)
                     imgui.WindowFlags.AlwaysAutoResize)
     for _, command in ipairs(commands.commands_manage) do
         if command.enable and command.arg == '{arg_id}' then
-            if imgui.Button(u8(command.description), imgui.ImVec2(
-                                290 * MONET_DPI_SCALE, 30 * MONET_DPI_SCALE)) then
+            if imgui.Button(u8(command.description),
+                            imgui.ImVec2(290 * settings.general.custom_dpi,
+                                         30 * settings.general.custom_dpi)) then
                 sampProcessChatInput("/" .. command.cmd .. " " .. player_id)
                 LeaderFastMenu[0] = false
             end
         end
     end
     if not isMonetLoader() then
-        if imgui.Button(u8 "Выдать выговор", imgui.ImVec2(
-                            290 * MONET_DPI_SCALE, 30 * MONET_DPI_SCALE)) then
+        if imgui.Button(u8 "Выдать выговор",
+                        imgui.ImVec2(290 * settings.general.custom_dpi,
+                                     30 * settings.general.custom_dpi)) then
             sampSetChatInputEnabled(true)
             sampSetChatInputText('/vig ' .. player_id .. ' ')
             LeaderFastMenu[0] = false
         end
         if imgui.Button(u8 "Уволить из организации",
-                        imgui.ImVec2(290 * MONET_DPI_SCALE, 30 * MONET_DPI_SCALE)) then
+                        imgui.ImVec2(290 * settings.general.custom_dpi,
+                                     30 * settings.general.custom_dpi)) then
             sampSetChatInputEnabled(true)
             sampSetChatInputText('/unv ' .. player_id .. ' ')
             LeaderFastMenu[0] = false
@@ -7677,7 +8543,7 @@ imgui.OnFrame(function() return GiveRankMenu[0] end, function(player)
                     imgui.WindowFlags.AlwaysAutoResize)
     imgui.CenterText(u8 'Выберите ранг для ' ..
                          sampGetPlayerNickname(player_id) .. ':')
-    imgui.PushItemWidth(250 * MONET_DPI_SCALE)
+    imgui.PushItemWidth(250 * settings.general.custom_dpi)
     imgui.SliderInt('', giverank, 1, 9)
     imgui.Separator()
     if imgui.Button(fa.USER_NURSE .. u8 " Выдать ранг",
@@ -7795,9 +8661,9 @@ imgui.OnFrame(function() return GiveRankMenu[0] end, function(player)
 end)
 
 imgui.OnFrame(function() return CommandStopWindow[0] end, function(player)
-    imgui.SetNextWindowPos(
-        imgui.ImVec2(sizeX / 2, sizeY - 50 * MONET_DPI_SCALE),
-        imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY - 50 *
+                                            settings.general.custom_dpi),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
     imgui.Begin(fa.BUILDING_SHIELD .. " Prison Helper##CommandStopWindow", _,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                     imgui.WindowFlags.NoScrollbar +
@@ -7815,22 +8681,24 @@ imgui.OnFrame(function() return CommandStopWindow[0] end, function(player)
 end)
 
 imgui.OnFrame(function() return CommandPauseWindow[0] end, function(player)
-    imgui.SetNextWindowPos(
-        imgui.ImVec2(sizeX / 2, sizeY - 50 * MONET_DPI_SCALE),
-        imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.Begin(fa.BUILDING_SHIELD .. " Prison Helper##CommandPauseWindow",
-                _, imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
+    imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY - 50 *
+                                            settings.general.custom_dpi),
+                           imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
+    imgui.Begin(fa.BUILDING_SHIELD .. " Prison Helper##CommandPauseWindow", _,
+                imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                     imgui.WindowFlags.NoScrollbar +
                     imgui.WindowFlags.AlwaysAutoResize)
     if command_pause then
         if imgui.Button(fa.CIRCLE_ARROW_RIGHT .. u8 ' Продолжить ',
-                        imgui.ImVec2(150 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+                        imgui.ImVec2(150 * settings.general.custom_dpi,
+                                     25 * settings.general.custom_dpi)) then
             command_pause = false
             CommandPauseWindow[0] = false
         end
         imgui.SameLine()
         if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Полный STOP ',
-                        imgui.ImVec2(150 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+                        imgui.ImVec2(150 * settings.general.custom_dpi,
+                                     25 * settings.general.custom_dpi)) then
             command_stop = true
             command_pause = false
             CommandPauseWindow[0] = false
@@ -7855,8 +8723,9 @@ imgui.OnFrame(function() return FastMenuPlayers[0] end, function(player)
     elseif tonumber(#get_players()) >= 1 then
         for _, playerId in ipairs(get_players()) do
             local id = tonumber(playerId)
-            if imgui.Button(sampGetPlayerNickname(id), imgui.ImVec2(
-                                200 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+            if imgui.Button(sampGetPlayerNickname(id),
+                            imgui.ImVec2(200 * settings.general.custom_dpi,
+                                         25 * settings.general.custom_dpi)) then
                 if tonumber(#get_players()) ~= 0 then
                     show_fast_menu(id)
                 end
@@ -7894,8 +8763,8 @@ end, function(player)
     local currentFPS = calculateFPS() -- Вычисляем FPS
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 8, sizeY / 1.7),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(225 * MONET_DPI_SCALE,
-                                         113 * MONET_DPI_SCALE),
+    imgui.SetNextWindowSize(imgui.ImVec2(225 * settings.general.custom_dpi,
+                                         113 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(fa.BUILDING_SHIELD .. u8 " Prison Helper##info_menu", _,
                 imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
@@ -7947,13 +8816,15 @@ imgui.OnFrame(function() return UpdateWindow[0] end, function(player)
     imgui.Text(updateInfoText)
     imgui.Separator()
     if imgui.Button(fa.CIRCLE_XMARK .. u8 ' Не обновлять ',
-                    imgui.ImVec2(250 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+                    imgui.ImVec2(250 * settings.general.custom_dpi,
+                                 25 * settings.general.custom_dpi)) then
         UpdateWindow[0] = false
     end
     imgui.SameLine()
     if imgui.Button(fa.DOWNLOAD ..
                         u8 ' Загрузить новую версию',
-                    imgui.ImVec2(250 * MONET_DPI_SCALE, 25 * MONET_DPI_SCALE)) then
+                    imgui.ImVec2(250 * settings.general.custom_dpi,
+                                 25 * settings.general.custom_dpi)) then
         download_helper = true
         downloadFileFromUrlToPath(updateUrl, path_helper)
         UpdateWindow[0] = false
@@ -7970,13 +8841,15 @@ imgui.OnFrame(function() return SobesMenu[0] end, function(player)
                         sampGetPlayerNickname(player_id), SobesMenu,
                     imgui.WindowFlags.NoCollapse + imgui.WindowFlags.NoResize +
                         imgui.WindowFlags.AlwaysAutoResize)
-        if imgui.BeginChild('sobes1', imgui.ImVec2(240 * MONET_DPI_SCALE,
-                                                   182 * MONET_DPI_SCALE), true) then
+        if imgui.BeginChild('sobes1',
+                            imgui.ImVec2(240 * settings.general.custom_dpi,
+                                         182 * settings.general.custom_dpi),
+                            true) then
             imgui.CenterColumnText(fa.BOOKMARK .. u8 " Основное")
             imgui.Separator()
             if imgui.Button(fa.PLAY ..
                                 u8 " Начать собеседование",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 lua_thread.create(function()
                     sampSendChat("Здравствуйте, я " ..
                                      settings.player_info.name_surname .. " - " ..
@@ -7989,7 +8862,7 @@ imgui.OnFrame(function() return SobesMenu[0] end, function(player)
             end
             if imgui.Button(fa.PASSPORT ..
                                 u8 " Попросить документы",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 lua_thread.create(function()
                     sampSendChat(
                         "Хорошо, предоставьте мне все ваши документы для проверки.")
@@ -8005,64 +8878,66 @@ imgui.OnFrame(function() return SobesMenu[0] end, function(player)
                 end)
             end
             if imgui.Button(fa.USER .. u8 " Расскажите о себе",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat("Немного расскажите о себе.")
             end
 
             if imgui.Button(fa.CHECK ..
                                 u8 " Собеседование пройдено",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat(
                     "/todo Поздравляю! Вы успешно прошли собеседование!*улыбаясь")
             end
             if imgui.Button(fa.USER_PLUS ..
                                 u8 " Пригласить в организацию",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 find_and_use_command('/invite {arg_id}', player_id)
                 SobesMenu[0] = false
             end
             imgui.EndChild()
         end
         imgui.SameLine()
-        if imgui.BeginChild('sobes2', imgui.ImVec2(240 * MONET_DPI_SCALE,
-                                                   182 * MONET_DPI_SCALE), true) then
+        if imgui.BeginChild('sobes2',
+                            imgui.ImVec2(240 * settings.general.custom_dpi,
+                                         182 * settings.general.custom_dpi),
+                            true) then
             imgui.CenterColumnText(fa.BOOKMARK ..
                                        u8 " Дополнительно")
             imgui.Separator()
             if imgui.Button(fa.GLOBE ..
                                 u8 " Наличие спец.рации Discord",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat(
                     "Имеется ли у Вас спец. рация Discord?")
             end
             if imgui.Button(fa.CIRCLE_QUESTION ..
                                 u8 " Наличие опыта работы",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat(
                     "Имеется ли у Вас опыт работы в нашей сфере?")
             end
             if imgui.Button(fa.CIRCLE_QUESTION ..
                                 u8 " Почему именно мы?",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat(
                     "Скажите почему Вы выбрали именно нас?")
             end
             if imgui.Button(fa.CIRCLE_QUESTION ..
                                 u8 " Что такое адекватность?",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat(
                     "Скажите что по вашему значит \"Адекватность\"?")
             end
             if imgui.Button(fa.CIRCLE_QUESTION .. u8 " Что такое ДМ?",
-                            imgui.ImVec2(-1, 25 * MONET_DPI_SCALE)) then
+                            imgui.ImVec2(-1, 25 * settings.general.custom_dpi)) then
                 sampSendChat(
                     "Скажите как вы думаете, что такое \"ДМ\"?")
             end
             imgui.EndChild()
         end
         imgui.SameLine()
-        if imgui.BeginChild('sobes3', imgui.ImVec2(150 * MONET_DPI_SCALE, -1),
-                            true) then
+        if imgui.BeginChild('sobes3', imgui.ImVec2(
+                                150 * settings.general.custom_dpi, -1), true) then
             imgui.CenterColumnText(fa.CIRCLE_XMARK .. u8 " Отказы")
             imgui.Separator()
             if imgui.Selectable(u8 "Нету паспорта") then
@@ -8171,8 +9046,8 @@ end)
 imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
     imgui.SetNextWindowPos(imgui.ImVec2(sizeX / 2, sizeY / 2),
                            imgui.Cond.FirstUseEver, imgui.ImVec2(0.5, 0.5))
-    imgui.SetNextWindowSize(imgui.ImVec2(600 * MONET_DPI_SCALE,
-                                         413 * MONET_DPI_SCALE),
+    imgui.SetNextWindowSize(imgui.ImVec2(600 * settings.general.custom_dpi,
+                                         413 * settings.general.custom_dpi),
                             imgui.Cond.FirstUseEver)
     imgui.Begin(fa.STAR ..
                     u8 " Регламент повышения срока##sum_menu",
@@ -8183,7 +9058,7 @@ imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
         imgui.Text(fa.MAGNIFYING_GLASS .. u8 ' Поиск:')
         imgui.SetWindowFontScale(1.0)
         imgui.SameLine()
-        imgui.PushItemWidth(467 * MONET_DPI_SCALE)
+        imgui.PushItemWidth(467 * settings.general.custom_dpi)
         imgui.InputText(u8 '##input_sum', input_sum, 128)
         imgui.SameLine()
         if imgui.Button(fa.GEAR) then
@@ -8204,7 +9079,7 @@ imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
             end
             if imgui.Button(fa.CIRCLE_XMARK .. u8(' Закрыть'),
                             imgui.ImVec2(imgui.GetMiddleButtonX(1),
-                                         25 * MONET_DPI_SCALE)) then
+                                         25 * settings.general.custom_dpi)) then
                 imgui.CloseCurrentPopup()
             end
             imgui.EndPopup()
@@ -8224,7 +9099,7 @@ imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
                                 u8(item.text) .. '##' .. item.text .. item.lvl ..
                                     item.reason, imgui.ImVec2(
                                     imgui.GetMiddleButtonX(1),
-                                    25 * MONET_DPI_SCALE)) then
+                                    25 * settings.general.custom_dpi)) then
                                 imgui.OpenPopup(popup_id)
                             end
                             -- imgui.PopStyleColor()
@@ -8247,16 +9122,22 @@ imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
                                 if imgui.Button(fa.CIRCLE_XMARK ..
                                                     u8 ' Отмена',
                                                 imgui.ImVec2(
-                                                    200 * MONET_DPI_SCALE,
-                                                    25 * MONET_DPI_SCALE)) then
+                                                    200 *
+                                                        settings.general
+                                                            .custom_dpi, 25 *
+                                                        settings.general
+                                                            .custom_dpi)) then
                                     imgui.CloseCurrentPopup()
                                 end
                                 imgui.SameLine()
                                 if imgui.Button(fa.STAR ..
                                                     u8 ' Выдать повышение срока',
                                                 imgui.ImVec2(
-                                                    200 * MONET_DPI_SCALE,
-                                                    25 * MONET_DPI_SCALE)) then
+                                                    200 *
+                                                        settings.general
+                                                            .custom_dpi, 25 *
+                                                        settings.general
+                                                            .custom_dpi)) then
                                     SumMenuWindow[0] = false
                                     if settings.general.use_form_su then
                                         find_and_use_command(
@@ -8292,7 +9173,7 @@ imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
                                     u8(item.text) .. '##' .. item.text ..
                                         item.lvl .. item.reason, imgui.ImVec2(
                                         imgui.GetMiddleButtonX(1),
-                                        25 * MONET_DPI_SCALE)) then
+                                        25 * settings.general.custom_dpi)) then
                                     imgui.OpenPopup(popup_id)
                                 end
                                 if imgui.BeginPopupModal(popup_id, nil,
@@ -8314,16 +9195,24 @@ imgui.OnFrame(function() return SumMenuWindow[0] end, function(player)
                                     if imgui.Button(fa.CIRCLE_XMARK ..
                                                         u8 ' Отмена',
                                                     imgui.ImVec2(
-                                                        200 * MONET_DPI_SCALE,
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        200 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         imgui.CloseCurrentPopup()
                                     end
                                     imgui.SameLine()
                                     if imgui.Button(fa.STAR ..
                                                         u8 ' Выдать повышение срока',
                                                     imgui.ImVec2(
-                                                        200 * MONET_DPI_SCALE,
-                                                        25 * MONET_DPI_SCALE)) then
+                                                        200 *
+                                                            settings.general
+                                                                .custom_dpi,
+                                                        25 *
+                                                            settings.general
+                                                                .custom_dpi)) then
                                         SumMenuWindow[0] = false
                                         if settings.general.use_form_su then
                                             find_and_use_command(
@@ -8446,30 +9335,37 @@ end
 
 function apply_dark_theme()
     imgui.SwitchContext()
-    imgui.GetStyle().WindowPadding = imgui.ImVec2(5 * MONET_DPI_SCALE,
-                                                  5 * MONET_DPI_SCALE)
-    imgui.GetStyle().FramePadding = imgui.ImVec2(5 * MONET_DPI_SCALE,
-                                                 5 * MONET_DPI_SCALE)
-    imgui.GetStyle().ItemSpacing = imgui.ImVec2(5 * MONET_DPI_SCALE,
-                                                5 * MONET_DPI_SCALE)
-    imgui.GetStyle().ItemInnerSpacing = imgui.ImVec2(2 * MONET_DPI_SCALE,
-                                                     2 * MONET_DPI_SCALE)
+    imgui.GetStyle().WindowPadding = imgui.ImVec2(5 *
+                                                      settings.general
+                                                          .custom_dpi, 5 *
+                                                      settings.general
+                                                          .custom_dpi)
+    imgui.GetStyle().FramePadding = imgui.ImVec2(
+                                        5 * settings.general.custom_dpi,
+                                        5 * settings.general.custom_dpi)
+    imgui.GetStyle().ItemSpacing = imgui.ImVec2(5 * settings.general.custom_dpi,
+                                                5 * settings.general.custom_dpi)
+    imgui.GetStyle().ItemInnerSpacing = imgui.ImVec2(2 *
+                                                         settings.general
+                                                             .custom_dpi, 2 *
+                                                         settings.general
+                                                             .custom_dpi)
     imgui.GetStyle().TouchExtraPadding = imgui.ImVec2(0, 0)
     imgui.GetStyle().IndentSpacing = 0
-    imgui.GetStyle().ScrollbarSize = 10 * MONET_DPI_SCALE
-    imgui.GetStyle().GrabMinSize = 10 * MONET_DPI_SCALE
-    imgui.GetStyle().WindowBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().ChildBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().PopupBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().FrameBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().TabBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().WindowRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().ChildRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().FrameRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().PopupRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().ScrollbarRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().GrabRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().TabRounding = 8 * MONET_DPI_SCALE
+    imgui.GetStyle().ScrollbarSize = 10 * settings.general.custom_dpi
+    imgui.GetStyle().GrabMinSize = 10 * settings.general.custom_dpi
+    imgui.GetStyle().WindowBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().ChildBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().PopupBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().FrameBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().TabBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().WindowRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().ChildRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().FrameRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().PopupRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().ScrollbarRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().GrabRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().TabRounding = 8 * settings.general.custom_dpi
     imgui.GetStyle().WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
     imgui.GetStyle().ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
     imgui.GetStyle().SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
@@ -8602,30 +9498,37 @@ function apply_moonmonet_theme()
                                                        .moonmonet_theme_color,
                                                    1.0, true)
     imgui.SwitchContext()
-    imgui.GetStyle().WindowPadding = imgui.ImVec2(5 * MONET_DPI_SCALE,
-                                                  5 * MONET_DPI_SCALE)
-    imgui.GetStyle().FramePadding = imgui.ImVec2(5 * MONET_DPI_SCALE,
-                                                 5 * MONET_DPI_SCALE)
-    imgui.GetStyle().ItemSpacing = imgui.ImVec2(5 * MONET_DPI_SCALE,
-                                                5 * MONET_DPI_SCALE)
-    imgui.GetStyle().ItemInnerSpacing = imgui.ImVec2(2 * MONET_DPI_SCALE,
-                                                     2 * MONET_DPI_SCALE)
+    imgui.GetStyle().WindowPadding = imgui.ImVec2(5 *
+                                                      settings.general
+                                                          .custom_dpi, 5 *
+                                                      settings.general
+                                                          .custom_dpi)
+    imgui.GetStyle().FramePadding = imgui.ImVec2(
+                                        5 * settings.general.custom_dpi,
+                                        5 * settings.general.custom_dpi)
+    imgui.GetStyle().ItemSpacing = imgui.ImVec2(5 * settings.general.custom_dpi,
+                                                5 * settings.general.custom_dpi)
+    imgui.GetStyle().ItemInnerSpacing = imgui.ImVec2(2 *
+                                                         settings.general
+                                                             .custom_dpi, 2 *
+                                                         settings.general
+                                                             .custom_dpi)
     imgui.GetStyle().TouchExtraPadding = imgui.ImVec2(0, 0)
     imgui.GetStyle().IndentSpacing = 0
-    imgui.GetStyle().ScrollbarSize = 10 * MONET_DPI_SCALE
-    imgui.GetStyle().GrabMinSize = 10 * MONET_DPI_SCALE
-    imgui.GetStyle().WindowBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().ChildBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().PopupBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().FrameBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().TabBorderSize = 1 * MONET_DPI_SCALE
-    imgui.GetStyle().WindowRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().ChildRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().FrameRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().PopupRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().ScrollbarRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().GrabRounding = 8 * MONET_DPI_SCALE
-    imgui.GetStyle().TabRounding = 8 * MONET_DPI_SCALE
+    imgui.GetStyle().ScrollbarSize = 10 * settings.general.custom_dpi
+    imgui.GetStyle().GrabMinSize = 10 * settings.general.custom_dpi
+    imgui.GetStyle().WindowBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().ChildBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().PopupBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().FrameBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().TabBorderSize = 1 * settings.general.custom_dpi
+    imgui.GetStyle().WindowRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().ChildRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().FrameRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().PopupRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().ScrollbarRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().GrabRounding = 8 * settings.general.custom_dpi
+    imgui.GetStyle().TabRounding = 8 * settings.general.custom_dpi
     imgui.GetStyle().WindowTitleAlign = imgui.ImVec2(0.5, 0.5)
     imgui.GetStyle().ButtonTextAlign = imgui.ImVec2(0.5, 0.5)
     imgui.GetStyle().SelectableTextAlign = imgui.ImVec2(0.5, 0.5)
@@ -8805,6 +9708,41 @@ function ColorAccentsAdapter(color)
     return ret
 end
 
+function change_dpi()
+	imgui.PushFont(MODULE.FONT) 
+end
+function getHelperIcon()
+	local HELPER_ICONS = {
+		police   = fa.BUILDING_SHIELD,
+		fbi      = fa.BUILDING_SHIELD,
+		army     = fa.BUILDING_SHIELD,
+		prison   = fa.BUILDING_SHIELD,
+		hospital = fa.HOSPITAL,
+		smi      = fa.BUILDING_NGO,
+		gov      = fa.BUILDING_COLUMNS,
+		fd       = fa.HOTEL,
+		mafia    = fa.TORII_GATE,
+		ghetto   = fa.BUILDING_WHEAT,
+		none     = fa.BUILDING_CIRCLE_XMARK
+	}
+	return HELPER_ICONS[settings.general.fraction_mode] or fa.BUILDING
+end
+function getUserIcon()
+	local USER_ICONS = {
+		police   = fa.USER_NURSE,
+		fbi      = fa.USER_NURSE,
+		army     = fa.PERSON_MILITARY_RIFLE,
+		prison   = fa.PERSON_MILITARY_RIFLE,
+		hospital = fa.USER_DOCTOR,
+		fd       = fa.USER_ASTRONAUT,
+		lc       = fa.USER_TIE,
+		ins      = fa.USER_TIE,
+		mafia    = fa.USER_NINJA,
+		ghetto   = fa.USER_NINJA
+	}
+	return USER_ICONS[settings.general.fraction_mode] or fa.USER
+end
+
 function deleteHelperData(checker)
     os.remove(configDirectory .. "/Settings.json")
     os.remove(configDirectory .. "/Commands.json")
@@ -8821,9 +9759,9 @@ function deleteHelperData(checker)
         reload_script = true
         thisScript():unload()
     else
-        sampAddChatMessage(
-            '[Prison Helper] {ffffff}Перезагрузка хелпера...',
-            message_color)
+        sampAddChatMessage(script_tag ..
+                               '{ffffff}Перезагрузка хелпера...',
+                           message_color)
         reload_script = true
         thisScript():reload()
     end
@@ -8840,9 +9778,9 @@ function main()
 
     if settings.player_info.name_surname == '' or settings.player_info.fraction ==
         'Неизвестно' then
-        sampAddChatMessage(
-            '[Prison Helper] {ffffff}Пытаюсь получить ваш /stats поскольку остуствуют данные про вас!',
-            message_color)
+        sampAddChatMessage(script_tag ..
+                               '{ffffff}Пытаюсь получить ваш /stats поскольку остуствуют данные про вас!',
+                           message_color)
         check_stats = true
         sampSendChat('/stats')
     end
@@ -8879,9 +9817,9 @@ function main()
             (os.date("%M", os.time()) == "25" and os.date("%S", os.time()) ==
                 "00")) and settings.general.auto_notify_payday and
             getARZServerNumber() ~= '200' then
-            sampAddChatMessage(
-                '[Prison Helper] {ffffff}Через 5 минут будет PAYDAY. Наденьте форму чтобы не пропустить зарплату!',
-                message_color)
+            sampAddChatMessage(script_tag ..
+                                   '{ffffff}Через 5 минут будет PAYDAY. Наденьте форму чтобы не пропустить зарплату!',
+                               message_color)
             wait(1000)
         end
     end
