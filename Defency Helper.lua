@@ -3,7 +3,7 @@ script_name("Defency Helper")
 script_description(
     'Хелпер для сотрудников ТСР Arizona&Rodina')
 script_author("Flip Anderson")
-script_version("v1.1.6")
+script_version("v1.1.7")
 ----------------------------------------------- INIT ---------------------------------------------
 local worked_dir = getWorkingDirectory():gsub('\\', '/')
 local IS_MOBILE = MONET_VERSION ~= nil
@@ -4955,132 +4955,42 @@ function string.rupper(s)
     end
     return output
 end
+
 function TranslateNick(name)
-    if name:match('%a+') then
-        local translit_table = {
-            ['ph'] = 'ф',
-            ['Ph'] = 'Ф',
-            ['Ch'] = 'Ч',
-            ['ch'] = 'ч',
-            ['Th'] = 'Т',
-            ['liy'] = 'лий',
-            ['th'] = 'т',
-            ['Sh'] = 'Ш',
-            ['sh'] = 'ш',
-            ['Ae'] = 'Э',
-            ['ae'] = 'э',
-            ['ame'] = 'ейм',
-            ['size'] = 'сайз',
-            ['Jj'] = 'Джейджей',
-            ['Whi'] = 'Вай',
-            ['lack'] = 'лэк',
-            ['ane'] = 'ейн',
-            ['whi'] = 'вай',
-            ['Ck'] = 'К',
-            ['ck'] = 'к',
-            ['Kh'] = 'Х',
-            ['kh'] = 'х',
-            ['Alex'] = 'Алекс',
-            ['hn'] = 'н',
-            ['Hen'] = 'Ген',
-            ['Zh'] = 'Ж',
-            ['zh'] = 'ж',
-            ['Yu'] = 'Ю',
-            ['Jason'] = 'Джейсон',
-            ['yu'] = 'ю',
-            ['Yo'] = 'Ё',
-            ['yo'] = 'ё',
-            ['Cz'] = 'Ц',
-            ['cz'] = 'ц',
-            ['Babe'] = 'Бэйби',
-            ['ia'] = 'я',
-            ['ea'] = 'и',
-            ['Ya'] = 'Я',
-            ['ya'] = 'я',
-            ['ove'] = 'ав',
-            ['ci'] = 'ци',
-            ['ay'] = 'эй',
-            ['rise'] = 'райз',
-            ['oo'] = 'у',
-            ['Oo'] = 'У',
-            ['rown'] = 'раун',
-            ['Ee'] = 'И',
-            ['ee'] = 'и',
-            ['Un'] = 'Ан',
-            ['un'] = 'ан',
-            ['Ci'] = 'Ци',
-            ['yse'] = 'уз',
-            ['cate'] = 'кейт',
-            ['eow'] = 'яу',
-            ['yev'] = 'уев',
-            ['Alexei'] = 'Алексей'
-        }
-        for k, v in pairs(translit_table) do name = name:gsub(k, v) end
-        local char_table = {
-            ['B'] = 'Б',
-            ['Z'] = 'З',
-            ['T'] = 'Т',
-            ['Y'] = 'Й',
-            ['P'] = 'П',
-            ['J'] = 'Дж',
-            ['X'] = 'Кс',
-            ['G'] = 'Г',
-            ['V'] = 'В',
-            ['H'] = 'Х',
-            ['N'] = 'Н',
-            ['E'] = 'Е',
-            ['I'] = 'И',
-            ['D'] = 'Д',
-            ['O'] = 'О',
-            ['K'] = 'К',
-            ['F'] = 'Ф',
-            ['y`'] = 'ы',
-            ['e`'] = 'э',
-            ['A'] = 'А',
-            ['C'] = 'К',
-            ['L'] = 'Л',
-            ['M'] = 'М',
-            ['W'] = 'В',
-            ['Q'] = 'К',
-            ['U'] = 'А',
-            ['R'] = 'Р',
-            ['S'] = 'С',
-            ['zm'] = 'зьм',
-            ['h'] = 'х',
-            ['q'] = 'к',
-            ['y'] = 'и',
-            ['a'] = 'а',
-            ['w'] = 'в',
-            ['b'] = 'б',
-            ['v'] = 'в',
-            ['g'] = 'г',
-            ['d'] = 'д',
-            ['e'] = 'е',
-            ['z'] = 'з',
-            ['i'] = 'и',
-            ['j'] = 'ж',
-            ['k'] = 'к',
-            ['l'] = 'л',
-            ['m'] = 'м',
-            ['n'] = 'н',
-            ['o'] = 'о',
-            ['p'] = 'п',
-            ['r'] = 'р',
-            ['s'] = 'с',
-            ['t'] = 'т',
-            ['u'] = 'у',
-            ['f'] = 'ф',
-            ['x'] = 'x',
-            ['c'] = 'к',
-            ['``'] = 'ъ',
-            ['`'] = 'ь',
-            ['_'] = ' '
-        }
-        for k, v in pairs(char_table) do name = name:gsub(k, v) end
+	if name and name:match('%a+') then
+		name = name:gsub("^%[%d+%]", "")
+		local translit_table = {
+       		['ph'] = 'ф',['Ph'] = 'Ф',['Ch'] = 'Ч',['ch'] = 'ч',['Th'] = 'Т', ['liy'] = 'лий', 
+			['th'] = 'т',['Sh'] = 'Ш',['sh'] = 'ш',['Ae'] = 'Э',['ae'] = 'э', ['ame'] = 'ейм',
+			['size'] = 'сайз', ['Jj'] = 'Джейджей',['Whi'] = 'Вай',['lack'] = 'лэк', ['ane'] = 'ейн',
+			['whi'] = 'вай',['Ck'] = 'К',['ck'] = 'к',['Kh'] = 'Х',['kh'] = 'х', ['Alex'] = 'Алекс',
+			['hn'] = 'н',['Hen'] = 'Ген',['Zh'] = 'Ж',['zh'] = 'ж',['Yu'] = 'Ю', ['Jason'] = 'Джейсон',
+			['yu'] = 'ю',['Yo'] = 'Ё',['yo'] = 'ё',['Cz'] = 'Ц',['cz'] = 'ц', ['Babe'] = 'Бэйби', 
+			['ia'] = 'я', ['ea'] = 'и',['Ya'] = 'Я', ['ya'] = 'я', ['ove'] = 'ав',['ci'] = 'ци',
+			['ay'] = 'эй', ['rise'] = 'райз',['oo'] = 'у', ['Oo'] = 'У', ['rown'] = 'раун',
+			['Ee'] = 'И', ['ee'] = 'и', ['Un'] = 'Ан', ['un'] = 'ан', ['Ci'] = 'Ци',
+			['yse'] = 'уз', ['cate'] = 'кейт', ['eow'] = 'яу', ['yev'] = 'уев', ['Alexei'] = 'Алексей', 
+		}
+		for k, v in pairs(translit_table) do
+            name = name:gsub(k, v) 
+        end
+		local char_table = {
+			['B'] = 'Б',['Z'] = 'З',['T'] = 'Т',['Y'] = 'Й',['P'] = 'П',['J'] = 'Дж',['X'] = 'Кс',['G'] = 'Г',
+			['V'] = 'В',['H'] = 'Х',['N'] = 'Н',['E'] = 'Е',['I'] = 'И',['D'] = 'Д',['O'] = 'О',['K'] = 'К',['F'] = 'Ф',
+			['y`'] = 'ы',['e`'] = 'э',['A'] = 'А',['C'] = 'К',['L'] = 'Л',['M'] = 'М',['W'] = 'В',['Q'] = 'К',
+			['U'] = 'А',['R'] = 'Р',['S'] = 'С',['zm'] = 'зьм',['h'] = 'х',['q'] = 'к',['y'] = 'и',['a'] = 'а',
+			['w'] = 'в',['b'] = 'б',['v'] = 'в',['g'] = 'г',['d'] = 'д',['e'] = 'е',['z'] = 'з',['i'] = 'и',
+			['j'] = 'ж',['k'] = 'к',['l'] = 'л',['m'] = 'м',['n'] = 'н',['o'] = 'о',['p'] = 'п',['r'] = 'р',
+			['s'] = 'с',['t'] = 'т',['u'] = 'у',['f'] = 'ф',['x'] = 'x',['c'] = 'к',['``'] = 'ъ',['`'] = 'ь',['_'] = ' '
+		}
+        for k, v in pairs(char_table) do
+			name = name:gsub(k, v) 
+        end
         return name
     end
-    return name
+	return name
 end
+
 function ReverseTranslateNick(name)
     local translit_table = {
         ['ф'] = 'f',
@@ -7851,87 +7761,68 @@ function sampev.onShowDialog(dialogid, style, title, button1, button2, text)
         return false
     end
 
-    -- Обработка /stats
-    if check_stats and (title:find('Основная статистика') or
-        title:find('Статистика игрока')) then
-        if text:find("Имя") then
-            settings.player_info.nick = text:match(
-                                            "{FFFFFF}Имя: {......}%[(.-)]") or
-                                            text:match(
-                                                "{ffffff}Имя %(en%.%):%s+{......}([^\n\r]+)")
-            settings.player_info.name_surname = text:match(
-                                                    "{ffffff}Имя %(рус%.%):%s+{......}([^\n\r]+)") or
-                                                    TranslateNick(
-                                                        settings.player_info
-                                                            .nick)
+    if check_stats and (title:find('Основная статистика') or title:find('Статистика игрока')) then
+		if text:find("Имя") then
+			settings.player_info.nick = text:match("{FFFFFF}Имя: {......}(.+) %[%№%d+%] \n{FFFFFF}Пол") or text:match("{ffffff}Имя %(en%.%):%s+{......}([^\n\r]+)")
+			settings.player_info.name_surname = text:match("{ffffff}Имя %(рус%.%):%s+{......}([^\n\r]+)") or TranslateNick(settings.player_info.nick)
+			sampAddChatMessage(script_tag .. ' {ffffff}Ваше имя и фамилия обнаружены: ' .. settings.player_info.name_surname, message_color)
         end
-        if text:find("Пол:") then
-            settings.player_info.sex = text:match(
-                                           "{FFFFFF}Пол: {......}%[(.-)]") or
-                                           text:match(
-                                               "{ffffff}Пол:%s+{......}([^\n\r]+)")
-        end
-        if text:find("Организация:") then
-            settings.player_info.fraction = text:match(
-                                                "{FFFFFF}Организация: {......}%[(.-)]") or
-                                                text:match(
-                                                    "{ffffff}Организация:%s+{......}([^\n\r]+)")
-            local fraction_data = {
-                ['Тюрьма строгого режима LV'] = {
-                    'ТСР', 'prison'
-                },
-                ['Тюрьма строгого режима ЛВ'] = {
-                    'ТСР', 'prison'
-                },
-                ['Армия СФ'] = {'СФа', 'army'},
-                ['Армия SF'] = {'СФа', 'army'},
-                ['Армия ЛС'] = {'ЛСа', 'army'},
-                ['Армия LS'] = {'ЛСа', 'army'},
-                ['Армия'] = {'ВС', 'army'},
-                ['Тюрьма Строгого Режима'] = {
-                    'ФСИН', 'prison'
-                }
-            }
-            local data = fraction_data[settings.player_info.fraction]
-            local old_fraction_mode = settings.general.fraction_mode
-            if data then
-                settings.player_info.fraction_tag = data[1]
-                settings.general.fraction_mode = data[2]
-                if text:find("Должность:") then
-                    local rank, rank_number = text:match(
-                                                  "{FFFFFF}Должность: {......}(.+)%((%d+)%)(.+)Уровень розыска")
-                    if not rank or not rank_number then
-                        rank, rank_number = text:match(
-                                                "{ffffff}Должность:%s+{......}([^(]+)%((%d+)%)")
-                    end
-                    settings.player_info.fraction_rank = rank
-                    settings.player_info.fraction_rank_number = tonumber(
-                                                                    rank_number)
-                    if settings.player_info.fraction_rank_number >= 9 then
-                        settings.general.auto_uninvite = true
-                    end
-                end
-            else
-                settings.general.fraction_mode = 'none'
-                settings.player_info.fraction_tag = "ЖДЛС"
-                settings.player_info.fraction_rank = "Бомж"
-                settings.player_info.fraction_rank_number = 1
-            end
-            if old_fraction_mode ~= '' and old_fraction_mode ~= 'none' and
-                old_fraction_mode ~= settings.general.fraction_mode then
-                delete_default_fraction_cmds(modules.commands.data.commands.my,
-                                             get_fraction_cmds(
-                                                 old_fraction_mode, false))
-                delete_default_fraction_cmds(
-                    modules.commands.data.commands_manage.my,
-                    get_fraction_cmds(old_fraction_mode, true))
-            end
-            import_fraction_data(settings.general.fraction_mode)
-        end
-        save_settings()
-        sampSendDialogResponse(dialogid, 0, 0, 0)
-        return false
-    end
+		if text:find("Пол:") then
+			settings.player_info.sex = text:match("{FFFFFF}Пол: {......}%[(.-)]") or text:match("{ffffff}Пол:%s+{......}([^\n\r]+)")
+			sampAddChatMessage(script_tag .. ' {ffffff}Ваш пол обнаружен: ' .. settings.player_info.sex, message_color)
+		end
+		if text:find("Организация:") then
+			settings.player_info.fraction = text:match("{FFFFFF}Организация: {......}%[(.-)]") or text:match("{ffffff}Организация:%s+{......}([^\n\r]+)")
+			local fraction_data = {
+				['Тюрьма строгого режима LV'] = {'ТСР', 'prison'}, ['Тюрьма строгого режима ЛВ'] = {'ТСР', 'prison'},
+				['Армия СФ'] = {'СФа', 'army'}, ['Армия SF'] = {'СФа', 'army'},
+				['Армия ЛС'] = {'ЛСа', 'army'}, ['Армия LS'] = {'ЛСа', 'army'},
+				['Армия'] = {'ВС', 'army'},
+				['Тюрьма Строгого Режима'] = {'ФСИН', 'prison'}
+			}
+			local data = fraction_data[settings.player_info.fraction]
+			local old_fraction_mode = settings.general.fraction_mode
+			if data then
+				sampAddChatMessage(script_tag .. ' {ffffff}Ваша организация обнаружена, это: '..settings.player_info.fraction, message_color)
+				settings.player_info.fraction_tag = data[1]
+				settings.general.fraction_mode = data[2]
+				sampAddChatMessage(script_tag .. ' {ffffff}Вашей организации присвоен тег '..settings.player_info.fraction_tag .. ". Но вы можете изменить его.", message_color)
+				if text:find("Должность:") then
+					local rank, rank_number = text:match("{FFFFFF}Должность: {......}(.+)%((%d+)%)(.+)Уровень розыска")
+					if not rank or not rank_number then
+						rank, rank_number = text:match("{ffffff}Должность:%s+{......}([^(]+)%((%d+)%)")
+					end
+					settings.player_info.fraction_rank = rank
+					settings.player_info.fraction_rank_number = tonumber(rank_number)
+					sampAddChatMessage(script_tag .. ' {ffffff}Ваша должность обнаружена, это: ' .. settings.player_info.fraction_rank .. " (" .. settings.player_info.fraction_rank_number .. ")", message_color)
+					if settings.player_info.fraction_rank_number >= 9 then
+						settings.general.auto_uninvite = true
+					end
+				end
+			else
+				settings.general.fraction_mode = 'none'
+				settings.player_info.fraction_tag = "ЖДЛС"
+				settings.player_info.fraction_rank = "Бомж"
+				settings.player_info.fraction_rank_number = 1
+				sampAddChatMessage(script_tag .. ' {ffffff}Не удалось получить вашу организацию и должность!', message_color)
+				sampAddChatMessage(script_tag .. ' {ffffff}Присвоил вам режим без организации (ЖДЛС - Бомж - 1).', message_color)
+				sampAddChatMessage(script_tag .. ' {ffffff}Если вы действительно состоите в организации - перенастройте хелпер вручную.', message_color)
+			end
+			if old_fraction_mode ~= '' and old_fraction_mode ~= 'none' and old_fraction_mode ~= settings.general.fraction_mode then
+				sampAddChatMessage(script_tag .. ' {ffffff}Вы теперь в другой фракции, поэтому удаляю команды ' .. old_fraction_mode:rupper(), message_color)
+				delete_default_fraction_cmds(modules.commands.data.commands.my, get_fraction_cmds(old_fraction_mode, false))
+				delete_default_fraction_cmds(modules.commands.data.commands_manage.my, get_fraction_cmds(old_fraction_mode, true))
+			end
+			import_fraction_data(settings.general.fraction_mode)
+		end
+		save_settings()
+		save_module('player')
+		save_module('departament')
+		sampSendDialogResponse(dialogid, 0, 0, 0)
+		reload_script = true
+		thisScript():reload()
+		return false
+	end
 
     -- Обработка /members
     if ((MODULE.Members.info.check) and
